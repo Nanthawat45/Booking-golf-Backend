@@ -1,4 +1,4 @@
-import User from "../models/userModel.js";
+import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
@@ -16,13 +16,14 @@ export const registerUser = async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hashedPassword });
+  const user = await User.create({ name, email, password: hashedPassword, role: 'user'});
 
   if (user) {
     res.status(201).json({
       _id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       token: generateToken(user.id),
     });
   } else {
@@ -40,6 +41,7 @@ export const loginUser = async (req, res) => {
       _id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       token: generateToken(user.id),
     });
   } else {
@@ -52,8 +54,47 @@ export const getUserProfile = async (req, res) => {
   const user = await User.findById(req.user.id);
 
   if (user) {
-    res.json({ _id: user.id, name: user.name, email: user.email });
+    res.json({
+       _id: user.id, 
+       name: user.name, 
+       email: user.email, 
+       role: user.role,
+      });
   } else {
     res.status(404).json({ message: "User not found" });
+  }
+};
+
+// 🔹 แอดมินสร้างรหัส caddy starter
+export const registerByAdmin = async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  const allowedRoles = ['admin', 'caddy', 'starter'];
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ message: "Invalid role specified" });
+  }
+
+  const adminUser = await User.findById(req.user.id);
+  if (!adminUser || adminUser.role !== 'admin') {
+    return res.status(403).json({ message: "Only admins can perform this action" });
+  }
+
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    return res.status(400).json({ message: "User already exists" });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const newUser = await User.create({ name, email, password: hashedPassword, role });
+
+  if (newUser) {
+    res.status(201).json({
+      _id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+    });
+  } else {
+    res.status(400).json({ message: "Failed to create user" });
   }
 };
