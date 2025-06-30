@@ -7,7 +7,7 @@
 
 /**
  * @swagger
- * /auth/register:
+ * /user/register:
  *   post:
  *     summary: สมัครสมาชิกด้วยตัวเอง
  *     tags: [User]
@@ -41,7 +41,7 @@
 
 /**
  * @swagger
- * /auth/admin/register:
+ * /user/admin/register:
  *   post:
  *     summary: สมัครสมาชิกโดยผู้ดูแลระบบ
  *     tags: [User]
@@ -83,7 +83,7 @@
 
 /**
  * @swagger
- * /auth/login:
+ * /user/login:
  *   post:
  *     summary: เข้าสู่ระบบ
  *     tags: [User]
@@ -95,15 +95,15 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - email
  *               - password
  *             properties:
- *               username:
+ *               email:
  *                 type: string
- *                 example: user01
+ *                 example: u1@gmail.com
  *               password:
  *                 type: string
- *                 example: "mypassword"
+ *                 example: "123456"
  *     responses:
  *       200:
  *         description: เข้าสู่ระบบสำเร็จ
@@ -121,7 +121,7 @@
 
 /**
  * @swagger
- * /auth/profile:
+ * /user/profile:
  *   get:
  *     summary: ข้อมูลโปรไฟล์ผู้ใช้ที่ล็อกอินแล้ว
  *     tags: [User]

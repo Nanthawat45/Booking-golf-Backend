@@ -94,7 +94,7 @@
  * @swagger
  * /bookings/{id}:
  *   put:
- *     summary: แก้ไขข้อมูลการจอง
+ *     summary: แก้ไขเวลาการจอง
  *     tags: [Booking]
  *     security:
  *       - bearerAuth: []
@@ -106,45 +106,31 @@
  *         schema:
  *           type: string
  *     requestBody:
- *       description: ข้อมูลการจองใหม่
+ *       description: เวลาที่ต้องการแก้ไข
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               courseType:
- *                 type: string
- *                 enum: ["9", "18"]
- *               date:
- *                 type: string
- *                 format: date
  *               timeSlot:
  *                 type: string
- *               players:
- *                 type: integer
- *               groupName:
- *                 type: string
- *               caddy:
- *                 type: array
- *                 items:
- *                   type: string
- *               totalPrice:
- *                 type: number
- *               golfCartQty:
- *                 type: integer
- *               golfBagQty:
- *                 type: integer
+ *                 example: "08:00"
+ *             required:
+ *               - timeSlot
  *     responses:
  *       200:
- *         description: แก้ไขสำเร็จ
+ *         description: แก้ไขเวลาการจองสำเร็จ
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Booking'
+ *       400:
+ *         description: ข้อมูลที่ส่งมาไม่ถูกต้อง หรือ ไม่มี `timeSlot`
  *       404:
  *         description: ไม่พบการจอง
  */
+
 
 /**
  * @swagger
