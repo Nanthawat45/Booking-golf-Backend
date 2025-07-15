@@ -18,3 +18,13 @@ export const protect = async (req, res, next) => {
     res.status(401).json({ message: "Not authorized, token failed" });
   }
 };
+
+export const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    // ตรวจสอบว่า req.user (ที่มาจาก protect middleware) มีบทบาทที่ถูกต้องหรือไม่
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ message: `User role '${req.user ? req.user.role : 'unknown'}' is not authorized to access this route` });
+    }
+    next(); // ไปยัง Middleware หรือ Controller ถัดไป
+  };
+};

@@ -10,6 +10,11 @@ role: {
       enum: ['admin', 'user', 'caddy', 'starter'],
       default: 'user',
     },
+  caddyStatus: { 
+      type: String,
+      enum: ['available', 'booked', 'onDuty', 'offDuty', 'resting', 'unavailable'], 
+      default: 'available', // สถานะเริ่มต้นคือ 'available' (ว่าง)
+    }
   },
   { timestamps: true }
 );

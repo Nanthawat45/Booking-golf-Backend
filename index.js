@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import equipment from "./routes/equipment.js";
+import assetRoutes from "./routes/assetRoutes.js";
+import assetSummaryRoutes from "./routes/summaryRoutes.js";
 import mongoose from 'mongoose';
 import { setupSwagger } from "./swagger.js";
 import cookieParser from "cookie-parser";
@@ -24,6 +26,8 @@ app.use(cookieParser());
 app.use("/api/user", userRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/item", equipment);
+app.use("/api/assets", assetRoutes);
+app.use("/api/summary", assetSummaryRoutes);
 
 setupSwagger(app);
 

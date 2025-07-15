@@ -147,3 +147,249 @@
  *       401:
  *         description: ไม่ได้รับอนุญาต
  */
+
+/**
+ * @swagger
+ * /user/logout:
+ *   post:
+ *     summary: ออกจากระบบ
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: ออกจากระบบสำเร็จ
+ *       401:
+ *         description: ต้องเข้าสู่ระบบก่อน
+ */
+
+/**
+ * @swagger
+ * /user/update:
+ *   put:
+ *     summary: อัปเดตข้อมูลผู้ใช้ของตัวเอง
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: newUsername
+ *               email:
+ *                 type: string
+ *                 example: newemail@example.com
+ *     responses:
+ *       200:
+ *         description: อัปเดตสำเร็จ
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ */
+
+/**
+ * @swagger
+ * /user/delete:
+ *   delete:
+ *     summary: ลบบัญชีของตัวเอง
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       204:
+ *         description: ลบสำเร็จ
+ *       401:
+ *         description: ไม่ได้รับอนุญาต
+ */
+
+/**
+ * @swagger
+ * /user/all:
+ *   get:
+ *     summary: ดูรายชื่อผู้ใช้ทั้งหมด (Admin เท่านั้น)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: รายการผู้ใช้
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   username:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *       403:
+ *         description: ต้องเป็น admin
+ */
+
+/**
+ * @swagger
+ * /user/{id}:
+ *   get:
+ *     summary: ดูผู้ใช้ตาม ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ข้อมูลผู้ใช้
+ *       404:
+ *         description: ไม่พบ
+ *   put:
+ *     summary: อัปเดตผู้ใช้ (admin)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: อัปเดตแล้ว
+ *       403:
+ *         description: ต้องเป็น admin
+ *   delete:
+ *     summary: ลบผู้ใช้ตาม ID
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: ลบสำเร็จ
+ *       403:
+ *         description: ต้องเป็น admin
+ */
+
+
+/**
+ * @swagger
+ * /user/caddy/my-assignments:
+ *   get:
+ *     summary: แคดดี้ดูรายการจองที่ได้รับมอบหมาย
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: รายการที่ได้รับมอบหมาย
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                   timeSlot:
+ *                     type: string
+ *                   groupName:
+ *                     type: string
+ *                   courseType:
+ *                     type: string
+ *                   players:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น caddy)
+ */
+
+/**
+ * @swagger
+ * /user/caddy/mark-available:
+ *   put:
+ *     summary: แคดดี้แจ้งสถานะว่าพร้อมให้บริการอีกครั้ง
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: แคดดี้พร้อมให้บริการ
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น caddy)
+ */
+
+/**
+ * @swagger
+ * /user/{id}/caddy-status/{newStatus}:
+ *   put:
+ *     summary: ผู้ดูแลหรือสตาร์ทเตอร์เปลี่ยนสถานะของแคดดี้
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: รหัสผู้ใช้ (แคดดี้)
+ *       - in: path
+ *         name: newStatus
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [available, inUse, cleaning, spare, broken]
+ *         description: สถานะใหม่ของแคดดี้
+ *     responses:
+ *       200:
+ *         description: เปลี่ยนสถานะสำเร็จ
+ *       400:
+ *         description: สถานะไม่ถูกต้อง
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น admin หรือ starter)
+ *       404:
+ *         description: ไม่พบแคดดี้
+ */

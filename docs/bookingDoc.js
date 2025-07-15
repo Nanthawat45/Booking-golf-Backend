@@ -209,3 +209,108 @@
  *           format: date-time
  *           example: "2025-06-01T12:00:00Z"
  */
+
+/**
+ * @swagger
+ * /bookings/caddy/{bookingId}/start-round:
+ *   put:
+ *     summary: แคดดี้เริ่มรอบการเล่น
+ *     tags: [Booking]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         description: รหัสการจอง
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: เริ่มรอบเรียบร้อย
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ
+ *       404:
+ *         description: ไม่พบการจอง
+ */
+
+/**
+ * @swagger
+ * /bookings/caddy/{bookingId}/end-round:
+ *   put:
+ *     summary: แคดดี้จบงานรอบการเล่น
+ *     tags: [Booking]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         description: รหัสการจอง
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: จบรอบเรียบร้อย
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ
+ *       404:
+ *         description: ไม่พบการจอง
+ */
+
+/**
+ * @swagger
+ * /bookings/caddy/{bookingId}/cancel-before-start:
+ *   put:
+ *     summary: แคดดี้ยกเลิกงานก่อนเริ่มรอบ
+ *     tags: [Booking]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         description: รหัสการจอง
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ยกเลิกก่อนเริ่มเรียบร้อย
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ
+ *       404:
+ *         description: ไม่พบการจอง
+ */
+
+/**
+ * @swagger
+ * /bookings/caddy/{bookingId}/cancel-during-round:
+ *   put:
+ *     summary: แคดดี้ยกเลิกงานระหว่างรอบ
+ *     tags: [Booking]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         description: รหัสการจอง
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ยกเลิกระหว่างรอบเรียบร้อย
+ *       401:
+ *         description: ต้องเข้าสู่ระบบ
+ *       403:
+ *         description: สิทธิ์ไม่เพียงพอ
+ *       404:
+ *         description: ไม่พบการจอง
+ */
+
