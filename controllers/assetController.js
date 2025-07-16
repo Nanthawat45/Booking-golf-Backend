@@ -39,7 +39,7 @@ export const createAsset = async (req, res) => {
     try {
         const { name, type } = req.body;
         // ตรวจสอบว่ามี name และ type หรือไม่
-        if (!name || !type) {
+        if (!type) {
             return res.status(400).json({ message: 'Please provide both name and type for the asset.' });
         }
         const asset = new Asset({ name, type });
