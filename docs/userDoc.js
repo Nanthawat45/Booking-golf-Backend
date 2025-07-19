@@ -19,16 +19,16 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - name
  *               - password
  *               - email
  *             properties:
- *               username:
+ *               name:
  *                 type: string
  *                 example: user01
  *               email:
  *                 type: string
- *                 example: user01@example.com
+ *                 example: user01@gmail.com
  *               password:
  *                 type: string
  *                 example: "mypassword"
@@ -55,17 +55,17 @@
  *           schema:
  *             type: object
  *             required:
- *               - username
+ *               - name
  *               - password
  *               - email
  *               - role
  *             properties:
- *               username:
+ *               name:
  *                 type: string
  *                 example: admin01
  *               email:
  *                 type: string
- *                 example: admin01@example.com
+ *                 example: admin01@gmail.com
  *               password:
  *                 type: string
  *                 example: "adminpassword"
@@ -135,12 +135,12 @@
  *             schema:
  *               type: object
  *               properties:
- *                 username:
+ *                 name:
  *                   type: string
  *                   example: user01
  *                 email:
  *                   type: string
- *                   example: user01@example.com
+ *                   example: user01@gmail.com
  *                 role:
  *                   type: string
  *                   example: "user"
@@ -178,12 +178,12 @@
 //  *           schema:
 //  *             type: object
 //  *             properties:
-//  *               username:
+//  *               name:
 //  *                 type: string
 //  *                 example: newUsername
 //  *               email:
 //  *                 type: string
-//  *                 example: newemail@example.com
+//  *                 example: newemail@gmail.com
 //  *     responses:
 //  *       200:
 //  *         description: อัปเดตสำเร็จ
@@ -226,7 +226,7 @@
  *                 properties:
  *                   _id:
  *                     type: string
- *                   username:
+ *                   name:
  *                     type: string
  *                   email:
  *                     type: string
@@ -273,7 +273,7 @@
 //  *           schema:
 //  *             type: object
 //  *             properties:
-//  *               username:
+//  *               name:
 //  *                 type: string
 //  *               email:
 //  *                 type: string
