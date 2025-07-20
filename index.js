@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import equipment from "./routes/equipment.js";
@@ -24,6 +25,7 @@ try {
   
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
 
 app.use("/api/user", userRoutes);
 app.use("/api/bookings", bookingRoutes);
