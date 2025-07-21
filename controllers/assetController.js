@@ -37,15 +37,24 @@ const updateSpecificAssetStatus = async (assetId, currentStatus, nextStatus, res
 // สร้าง Asset ใหม่ (เวอร์ชันที่รับ name และ type)
 export const createAsset = async (req, res) => {
     try {
-        const { name, type } = req.body;
+        const { name, type, assetId, description } = req.body;
         // ตรวจสอบว่ามี name และ type หรือไม่
-        if (!type) {
-            return res.status(400).json({ message: 'Please provide both name and type for the asset.' });
+        if (!name || !assetId || !type) {
+            return res.status(400).json({ message: 'Please provide name, assetId, and type for the asset.' });
         }
-        const asset = new Asset({ name, type });
+        const asset = new Asset({ name, assetId, type, description });
         await asset.save();
         res.status(201).json(asset);
     } catch (error) {
+        if (error.code === 11000) {
+            if (error.keyValue && error.keyValue.name) {
+                 return res.status(409).json({ message: `Asset with name '${req.body.name}' already exists.` });
+            }
+            if (error.keyValue && error.keyValue.assetId) {
+                 return res.status(409).json({ message: `Asset with ID '${req.body.assetId}' already exists.` });
+            }
+            return res.status(409).json({ message: "Duplicate key error." }); 
+        }
         res.status(400).json({ message: error.message });
     }
 };
@@ -75,16 +84,27 @@ export const getAssetById = async (req, res) => {
 // อัปเดตข้อมูล Asset (รวมถึง status แบบอิสระ ถ้ามีสิทธิ์)
 export const updateAsset = async (req, res) => {
     try {
-        const { name, type, status } = req.body;
-        const asset = await Asset.findById(req.params.id);
+        const { id } = req.params;
+        // ไม่มี location ใน req.body แล้ว
+        const { name, assetId, type, status, description } = req.body; 
+        
+        const asset = await Asset.findById(id);
         if (!asset) return res.status(404).json({ message: 'Asset not found' });
 
-        asset.name = name || asset.name;
-        asset.type = type || asset.type;
-        // การอัปเดต status ผ่านฟังก์ชันนี้จะไม่มี Logic switch case
-        // เหมาะสำหรับ Admin ที่ต้องการแก้ไขสถานะโดยตรง (เช่นแก้ไขข้อมูลย้อนหลัง)
+        const userRole = req.user.role; 
+        if (userRole !== 'admin' && userRole !== 'staff') {
+            return res.status(403).json({ message: 'Forbidden: You do not have permission to update assets directly.' });
+        }
+
+        // อัปเดตเฉพาะฟิลด์ที่มีใน req.body
+        if (name) asset.name = name; 
+        if (assetId) asset.assetId = assetId;
+        if (type) asset.type = type; 
+        // if (location) asset.location = location; // <<-- บรรทัดนี้ถูกลบออก
+        if (description) asset.description = description;
+
         if (status) {
-            const allowedStatuses = ['available', 'inUse', 'clean', 'broken', 'spare', 'booked'];
+            const allowedStatuses = ['booked', 'inUse', 'clean', 'available', 'spare', 'broken']; 
             if (!allowedStatuses.includes(status)) {
                 return res.status(400).json({ message: `Invalid status: ${status}. Allowed statuses are: ${allowedStatuses.join(', ')}` });
             }
@@ -94,6 +114,15 @@ export const updateAsset = async (req, res) => {
         const updatedAsset = await asset.save();
         res.status(200).json(updatedAsset);
     } catch (error) {
+        if (error.code === 11000) {
+            if (error.keyValue && error.keyValue.name) {
+                 return res.status(409).json({ message: `Asset with name '${req.body.name}' already exists.` });
+            }
+            if (error.keyValue && error.keyValue.assetId) {
+                 return res.status(409).json({ message: `Asset with ID '${req.body.assetId}' already exists.` });
+            }
+            return res.status(409).json({ message: "Duplicate key error." });
+        }
         res.status(400).json({ message: error.message });
     }
 };
@@ -114,57 +143,97 @@ export const deleteAsset = async (req, res) => {
 // --- ✅ ฟังก์ชันสำหรับอัปเดตสถานะ Asset ตาม Flow (ใช้ Logic switch case) ---
 // **นี่คือฟังก์ชันที่ใช้แทน 'updateAssetStatus' ตัวเก่าที่มี switch case**
 // และจะถูกเรียกจาก route ที่มี :newStatus ใน URL
-export const updateAssetStatus = async (req, res) => {
-    const { id } = req.params; 
-    const { newStatus } = req.params; 
 
-    const allowedStatuses = ['available', 'inUse', 'clean', 'broken', 'spare', 'booked'];
+export const updateAssetStatus = async (req, res) => {
+    const { id, newStatus } = req.params; 
+    const { description } = req.body; 
+
+    const allowedStatuses = ['booked', 'inUse', 'clean', 'available', 'spare', 'broken'];
     if (!allowedStatuses.includes(newStatus)) {
         return res.status(400).json({ message: `Invalid status: ${newStatus}. Allowed statuses are: ${allowedStatuses.join(', ')}` });
     }
 
     try {
         const asset = await Asset.findById(id);
-
         if (!asset) {
             return res.status(404).json({ message: "Asset not found." });
         }
-
+         console.log("Asset before save:", asset);
+        const userRole = req.user.role; 
         let message = `Asset '${asset.name}' (${asset.type}) status updated from '${asset.status}' to '${newStatus}'.`;
 
-        switch (asset.status) {
-            case 'booked': 
-                if (newStatus === 'inUse') {
-                    asset.status = newStatus;
-                } else {
-                    return res.status(400).json({ message: `Asset status cannot be changed from 'booked' to '${newStatus}'. Only 'inUse' is allowed.` });
+        // --- A. Logic การตรวจสอบสิทธิ์และการเปลี่ยนสถานะตามบทบาท ---
+        if (userRole === 'caddy') {
+            if (asset.status === 'inUse' && newStatus === 'broken') {
+                if (!description) { 
+                    return res.status(400).json({ message: 'Description is required when reporting a broken asset.' });
                 }
-                break;
-            case 'inUse': 
-                if (newStatus === 'clean' || newStatus === 'broken') {
-                    asset.status = newStatus;
-                } else {
-                    return res.status(400).json({ message: `Asset status cannot be changed from 'inUse' to '${newStatus}'.` });
-                }
-                break;
-            case 'clean': 
-                if (newStatus === 'available' || newStatus === 'spare') {
-                    asset.status = newStatus;
-                } else {
-                    return res.status(400).json({ message: `Asset status cannot be changed from 'clean' to '${newStatus}'. Only 'available' or 'spare' is allowed.` });
-                }
-                break;
-            case 'broken': 
-                if (newStatus === 'clean' || newStatus === 'spare') {
-                    asset.status = newStatus;
-                } else {
-                    return res.status(400).json({ message: `Asset status cannot be changed from 'broken' to '${newStatus}'. Only 'clean' or 'spare' is allowed.` });
-                }
-                break;
-            default: 
                 asset.status = newStatus;
-                break;
+                asset.description = description; 
+                // TODO: ส่ง Notification ไปยัง Starter
+                // if (sendNotification) sendNotification('starter', `Caddy ${req.user.name} แจ้งรถกอล์ฟ ${asset.name} (ID: ${asset.assetId}) เสีย. ปัญหา: ${description}`);
+            } else {
+                return res.status(403).json({ message: `Forbidden: Caddies can only change asset status from 'inUse' to 'broken'.` });
+            }
+        } else if (userRole === 'starter' || userRole === 'admin' || userRole === 'staff') {
+            // Starter, Admin, Staff มีสิทธิ์จัดการสถานะที่ยืดหยุ่นกว่า
+            if (description) asset.description = description;
+
+            // <<< ตรงนี้คือจุดที่ต้องแน่ใจว่า switch statement อยู่ในบล็อกนี้ >>>
+            switch (asset.status) {
+                case 'booked': 
+                    if (newStatus === 'inUse' || newStatus === 'broken' || newStatus === 'available' || newStatus === 'spare') { 
+                        asset.status = newStatus;
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'booked' to '${newStatus}'.` });
+                    }
+                    break;
+                case 'inUse': 
+                    if (newStatus === 'clean' || newStatus === 'broken') { 
+                        asset.status = newStatus;
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'inUse' to '${newStatus}'.` });
+                    }
+                    break;
+                case 'clean': 
+                    if (newStatus === 'available' || newStatus === 'spare' || newStatus === 'broken') { 
+                        asset.status = newStatus;
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'clean' to '${newStatus}'. Only 'available', 'spare', or 'broken' is allowed.` });
+                    }
+                    break;
+                case 'broken': 
+                    if (newStatus === 'clean' || newStatus === 'available' || newStatus === 'spare') {
+                        asset.status = newStatus;
+                        if (newStatus === 'available' || newStatus === 'clean') asset.description = ''; 
+                        // TODO: ส่ง Notification ถ้ากลับมาใช้งานได้
+                        // if (sendNotification) sendNotification('operations', `รถกอล์ฟ ${asset.name} (ID: ${asset.assetId}) ได้รับการซ่อมแซมและพร้อมใช้งาน (${newStatus}) แล้ว.`);
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'broken' to '${newStatus}'. Only 'clean', 'available' or 'spare' is allowed.` });
+                    }
+                    break;
+                case 'available': 
+                    if (newStatus === 'spare' || newStatus === 'booked' || newStatus === 'broken') { 
+                        asset.status = newStatus;
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'available' to '${newStatus}'. Only 'spare', 'booked', or 'broken' is allowed.` });
+                    }
+                    break;
+                case 'spare': 
+                    if (newStatus === 'available' || newStatus === 'broken' || newStatus === 'booked' || newStatus === 'inUse') {
+                        asset.status = newStatus;
+                    } else {
+                        return res.status(400).json({ message: `Asset status cannot be changed from 'spare' to '${newStatus}'.` });
+                    }
+                    break;
+                default:
+                    asset.status = newStatus;
+                    break;
+            }
+        } else {
+            return res.status(403).json({ message: 'Forbidden: You do not have permission to update asset status.' });
         }
+        // --- สิ้นสุด A. Logic การตรวจสอบสิทธิ์และการเปลี่ยนสถานะ ---
 
         const updatedAsset = await asset.save();
         res.status(200).json({ message, asset: updatedAsset });

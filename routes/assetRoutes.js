@@ -29,6 +29,6 @@ router.put('/:id/status/:newStatus', protect, authorizeRoles('admin', 'starter',
 
 // --- Asset Reporting/Overview Routes (สำหรับ Admin, Staff) ---
 // ใช้สำหรับดึงข้อมูลสรุปสถานะโดยรวมของ Asset ทั้งหมด
-router.get('/status/overall', protect, authorizeRoles('admin', 'staff'), getAssetOverallStatus);
+router.get('/status/overall', protect, authorizeRoles('admin', 'starter', 'caddy'), getAssetOverallStatus);
 
 export default router;

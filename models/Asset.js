@@ -15,7 +15,23 @@ const ASSET_TYPE_ENUM = [
 ];
 
 const assetSchema = new mongoose.Schema({
-  // ไม่มีฟิลด์ 'name' แล้ว ใช้ _id ของ MongoDB เป็นตัวระบุเฉพาะ
+   assetId: {
+        type: String,
+        required: true,
+        unique: true, // รหัสต้องไม่ซ้ำกัน
+        trim: true,
+    },
+    description: {
+        type: String,
+        trim: true,
+        // ใช้สำหรับบอกรายละเอียดของปัญหา หรือข้อมูลอื่นๆ
+    },
+    name: { 
+        type: String,
+        required: true, // ทำให้ name จำเป็นต้องมี
+        trim: true,
+        unique: true // ถ้า name ต้องไม่ซ้ำกัน
+    },
   type: { 
     type: String, 
     enum: ASSET_TYPE_ENUM, // กำหนดประเภทของ Asset (golfCart, golfBag)
