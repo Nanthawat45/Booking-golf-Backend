@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import Booking from "../models/Booking.js";
 import mongoose from "mongoose";
+import Asset from "../models/Asset.js";
 
 export const generateToken = (userId, res) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -254,47 +255,103 @@ export const logoutUser = (req, res) => {
 
 
 export const markCaddyAsAvailable = async (req, res) => {
-    const caddyId = req.user._id; // ID ของแคดดี้ที่ล็อกอินอยู่
-
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+        const caddyId = req.user._id;
+
+        console.log("--- Debugging markCaddyAsAvailable ---");
+        console.log("Caddy ID from token:", caddyId);
+
         const caddy = await User.findById(caddyId).session(session);
 
         if (!caddy) {
+            console.log("Caddy not found for ID:", caddyId);
+            await session.abortTransaction();
             return res.status(404).json({ message: "Caddy not found." });
         }
 
-        // ตรวจสอบว่าแคดดี้อยู่ในสถานะ 'cleaning' หรือไม่
+        console.log("Caddy found. Current Caddy Status:", caddy.caddyStatus);
+
+        // ตรวจสอบว่าแคดดี้อยู่ในสถานะ 'cleaning' เท่านั้น จึงจะสามารถเปลี่ยนเป็น 'available' ได้
         if (caddy.caddyStatus !== 'cleaning') {
-            return res.status(400).json({ message: "Caddy is not in 'cleaning' status. Cannot mark as available." });
+            console.log(`Caddy is not in 'cleaning' status. Current status: ${caddy.caddyStatus}. Cannot mark as available.`);
+            await session.abortTransaction();
+            return res.status(400).json({ message: `Caddy is not in 'cleaning' status. Current status: ${caddy.caddyStatus}. Cannot mark as available.` });
         }
 
-        // เปลี่ยนสถานะแคดดี้จาก 'cleaning' เป็น 'available'
-        await User.updateOne(
-            { _id: caddyId, caddyStatus: 'cleaning' },
-            { $set: { caddyStatus: 'available' } },
-            { session: session }
-        );
+        // 1. เปลี่ยนสถานะแคดดี้จาก 'cleaning' เป็น 'available'
+        caddy.caddyStatus = 'available';
+        await caddy.save({ session });
+        console.log(`Caddy '${caddy.name}' status successfully updated from 'cleaning' to 'available'.`);
 
-        // หมายเหตุ: การเปลี่ยนสถานะของ Asset (รถ/ถุงกอล์ฟ) จาก 'clean' เป็น 'available'
-        // จะเกิดขึ้นเมื่อแคดดี้กด "จบงาน" (End Round) แล้ว Asset จะเปลี่ยนเป็น 'clean' ทันที
-        // และถ้าต้องการให้ Asset กลับมา 'available' แคดดี้อาจจะต้องแจ้ง Staff/Admin
-        // หรือมีฟังก์ชันแยกต่างหากสำหรับ Asset ที่ 'clean' แล้วให้กลับมา 'available'
-        // แต่ตาม Flow ที่เราตกลงกันล่าสุด (ข้อ 7) แคดดี้เป็นคนเปลี่ยนสถานะตัวเองเป็น 'available'
-        // ส่วน Asset จะเป็น 'available' ทันทีที่กด End Round
-        // ดังนั้น ฟังก์ชันนี้จะจัดการแค่สถานะ Caddy เท่านั้น
+        // 2. หาทุก Booking ที่แคดดี้คนนี้เกี่ยวข้องและมีสถานะ 'completed'
+        // และหา Booking ที่ "ล่าสุด" เพื่อให้แน่ใจว่าอัปเดต Asset ที่เพิ่งจบรอบไป
+        // *** สำคัญ: ตรวจสอบว่าใน Booking Model ของคุณใช้ 'caddyId' (ObjectId เดี่ยวๆ) หรือ 'caddy' (Array ของ ObjectId) ***
+        const latestCompletedBooking = await Booking.findOne({
+            caddyId: caddyId, // ✅ ถ้า Booking ของคุณมีฟิลด์ caddyId เป็น ObjectId เดี่ยวๆ
+            // หรือใช้ 'caddy': { $in: [caddyId] } ถ้า Booking ของคุณมีฟิลด์ caddy เป็น Array
+            status: 'completed'
+        }).sort({ createdAt: -1 }).session(session); // ใช้ createdAt หรือ endTime ถ้ามี
+
+        let updatedGolfCartsCount = 0;
+        let updatedGolfBagsCount = 0;
+
+        if (latestCompletedBooking) {
+            console.log(`Found latest completed booking (ID: ${latestCompletedBooking._id}) for caddy.`);
+
+            // 3. อัปเดตสถานะของรถกอล์ฟที่เกี่ยวข้อง
+            if (latestCompletedBooking.bookedGolfCartIds && latestCompletedBooking.bookedGolfCartIds.length > 0) {
+                // ✅ เปลี่ยนสถานะของรถกอล์ฟจาก 'clean' เป็น 'available'
+                const resultCarts = await Asset.updateMany(
+                    { _id: { $in: latestCompletedBooking.bookedGolfCartIds }, status: 'clean' }, // เงื่อนไข: ต้องอยู่ในสถานะ 'clean'
+                    { $set: { status: 'available' } },
+                    { session: session }
+                );
+                updatedGolfCartsCount = resultCarts.modifiedCount;
+                console.log(`Updated ${updatedGolfCartsCount} golf carts from 'clean' to 'available'.`);
+            } else {
+                console.log("No golf carts found in the latest completed booking for this caddy.");
+            }
+
+            // 4. อัปเดตสถานะของถุงกอล์ฟที่เกี่ยวข้อง
+            if (latestCompletedBooking.bookedGolfBagIds && latestCompletedBooking.bookedGolfBagIds.length > 0) {
+                // ✅ เปลี่ยนสถานะของถุงกอล์ฟจาก 'clean' เป็น 'available'
+                const resultBags = await Asset.updateMany(
+                    { _id: { $in: latestCompletedBooking.bookedGolfBagIds }, status: 'clean' }, // เงื่อนไข: ต้องอยู่ในสถานะ 'clean'
+                    { $set: { status: 'available' } },
+                    { session: session }
+                );
+                updatedGolfBagsCount = resultBags.modifiedCount;
+                console.log(`Updated ${updatedGolfBagsCount} golf bags from 'clean' to 'available'.`);
+            } else {
+                console.log("No golf bags found in the latest completed booking for this caddy.");
+            }
+        } else {
+            console.log("No completed booking found for this caddy to mark associated assets as available. Only caddy status updated.");
+        }
 
         await session.commitTransaction();
-        res.status(200).json({ message: "Caddy is now available after cleaning.", caddyStatus: 'available' });
+
+        res.status(200).json({
+            message: "Caddy and associated assets are now available after cleaning.",
+            caddy: {
+                _id: caddy._id,
+                name: caddy.name,
+                caddyStatus: caddy.caddyStatus
+            },
+            golfCartsUpdated: updatedGolfCartsCount,
+            golfBagsUpdated: updatedGolfBagsCount
+        });
 
     } catch (error) {
         await session.abortTransaction();
-        console.error("Failed to mark caddy as available:", error);
-        res.status(400).json({ error: error.message || "Failed to mark caddy as available." });
+        console.error("Error in markCaddyAsAvailable:", error);
+        res.status(500).json({ message: 'Server error.', error: error.message || "Failed to mark caddy and assets as available." });
     } finally {
         session.endSession();
+        console.log("--- End of markCaddyAsAvailable Debug ---");
     }
 };
 

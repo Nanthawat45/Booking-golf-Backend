@@ -535,12 +535,12 @@ export const cancelDuringRound = async (req, res) => {
 };
 
 export const replaceGolfCart = async (req, res) => {
-    const session = await mongoose.startSession(); // เริ่ม Session สำหรับ Transaction
-    session.startTransaction(); // เริ่ม Transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
     try {
-        const { bookingId } = req.params; // รับ bookingId จาก URL parameters
-        const { oldGolfCartId, newGolfCartId } = req.body; // ส่วน GolfCart IDs รับจาก body เหมือนเดิม
+        const { bookingId } = req.params;
+        const { oldGolfCartId, newGolfCartId } = req.body;
 
         // 1. ตรวจสอบสิทธิ์ผู้ใช้ (Starter หรือ Admin เท่านั้น)
         if (!req.user || (req.user.role !== 'starter' && req.user.role !== 'admin')) {
@@ -561,7 +561,7 @@ export const replaceGolfCart = async (req, res) => {
             await session.abortTransaction();
             return res.status(404).json({ message: 'Booking not found.' });
         }
-        console.log("Booking found. Booking Status:", booking.status); // เพิ่ม log สถานะ Booking
+        console.log("Booking found. Current Booking Status:", booking.status);
 
         // 3. ตรวจสอบว่า oldGolfCartId อยู่ใน Booking นั้นจริงหรือไม่
         const bookedGolfCartStrings = booking.bookedGolfCartIds.map(id => id.toString());
@@ -588,59 +588,189 @@ export const replaceGolfCart = async (req, res) => {
             return res.status(400).json({ message: `New golf cart ('${newGolfCart.name}' ID: ${newGolfCart.assetId}) is not in 'spare' or 'available' status. Current status: ${newGolfCart.status}.` });
         }
         
-        // 6. กำหนดสถานะใหม่ของรถสำรอง
-        let newCartAssignedStatus;
-
-        // ✅ แก้ไข Logic ตรงนี้: ถ้า oldGolfCart อยู่ในสถานะ 'inUse' แสดงว่ารอบเริ่มไปแล้ว
-        // ดังนั้น newGolfCart ก็ควรจะเป็น 'inUse' ทันที
-        if (oldGolfCart.status === 'inUse') {
-            newCartAssignedStatus = 'inUse';
-            console.log("Old golf cart was 'inUse', setting new golf cart status to 'inUse'.");
-        } 
-        // หาก oldGolfCart ไม่ได้ 'inUse' แต่ Booking อยู่ในสถานะ 'booked' หรืออื่นๆ ที่ยังไม่เริ่มรอบ
-        else if (booking.status === 'booked' || booking.status === 'pending' || booking.status === 'confirmed') {
-            newCartAssignedStatus = 'booked';
-            console.log("Booking status is pre-round, setting new golf cart status to 'booked'.");
-        } 
-        // กรณีอื่นๆ (อาจเกิดจากสถานะ Booking ที่ไม่คาดคิด หรือการจัดการ flow ที่ซับซ้อน)
-        else {
-            // ใช้ booking.status เป็นตัวตัดสินสุดท้าย หรือใช้ 'inUse' เป็น default หาก booking.status บ่งชี้ว่ารอบกำลังเล่น
-            newCartAssignedStatus = (booking.status === 'inUse' || booking.status === 'started') ? 'inUse' : 'booked';
-            console.log(`Fallback: Booking status is '${booking.status}', setting new golf cart status to '${newCartAssignedStatus}'.`);
-        }
+        // 6. กำหนดสถานะใหม่ของรถสำรอง (newCartAssignedStatus)
+        // ✅ บังคับให้เป็น 'inUse' เสมอเมื่อมีการเปลี่ยนรถ (ตามที่คุณต้องการ)
+        const newCartAssignedStatus = 'inUse'; 
+        console.log(`Logic Applied: Forcing new golf cart status to '${newCartAssignedStatus}' upon replacement.`);
         
         // 7. อัปเดตสถานะของรถกอล์ฟเก่า (ให้เป็น broken) และรถกอล์ฟใหม่
         oldGolfCart.status = 'broken';
-        await oldGolfCart.save({ session }); // บันทึกใน Transaction
+        await oldGolfCart.save({ session });
         console.log(`Old Golf Cart ('${oldGolfCart.name}') status updated to 'broken'.`);
 
         newGolfCart.status = newCartAssignedStatus; 
-        await newGolfCart.save({ session }); // บันทึกใน Transaction
+        await newGolfCart.save({ session });
         console.log(`New Golf Cart ('${newGolfCart.name}') status updated to '${newCartAssignedStatus}'.`);
 
-        // 8. อัปเดตข้อมูล Booking เพื่ออ้างอิงรถกอล์ฟคันใหม่
+        // ✅ 8. หารถ available มาแทนที่รถ spare ที่เพิ่งถูกใช้งานไป (ส่วนนี้ถูกนำกลับมา)
+        // ตรวจสอบว่าเป็นรถกอล์ฟ และสถานะที่กำหนดให้เป็น 'inUse' จริงๆ
+        if (newGolfCart.type === 'golfCart' && newCartAssignedStatus === 'inUse') {
+            console.log("Searching for an available golf cart to replace the 'spare' position...");
+            // ค้นหารถกอล์ฟที่มีสถานะ 'available' และนำมาเปลี่ยนเป็น 'spare'
+            const availableGolfCart = await Asset.findOneAndUpdate(
+                { type: 'golfCart', status: 'available' },
+                { $set: { status: 'spare' } },
+                { new: true, session: session } // new: true จะคืนค่าเอกสารที่อัปเดตแล้ว
+            );
+
+            if (availableGolfCart) {
+                console.log(`Found and updated Asset '${availableGolfCart.name}' (ID: ${availableGolfCart._id}) from 'available' to 'spare'.`);
+            } else {
+                console.log("No available golf cart found to fill the 'spare' position. Please ensure there's always an 'available' cart for backup.");
+                // คุณอาจจะพิจารณาการส่งการแจ้งเตือนไปยังผู้ดูแลระบบที่นี่
+            }
+        } else {
+            console.log("No need to find a new 'spare' golf cart (either new golf cart is not 'inUse' or not a golf cart type).");
+        }
+
+        // 9. อัปเดตข้อมูล Booking เพื่ออ้างอิงรถกอล์ฟคันใหม่
         booking.bookedGolfCartIds = booking.bookedGolfCartIds.filter(id => id.toString() !== oldGolfCartId.toString());
         booking.bookedGolfCartIds.push(newGolfCart._id);
-        await booking.save({ session }); // บันทึกใน Transaction
-        console.log("Booking's golf cart list updated.");
+        await booking.save({ session });
+        console.log("Booking's golf cart list updated. Final bookedGolfCartIds:", booking.bookedGolfCartIds.map(id => id.toString()));
 
-        await session.commitTransaction(); // ยืนยัน Transaction
+        await session.commitTransaction();
         console.log("Transaction committed successfully.");
 
-        // 9. ส่ง Notification (ถ้ามีระบบแจ้งเตือน)
+        // 10. ส่ง Response กลับ
         res.status(200).json({
-            message: 'Golf cart replaced successfully.',
+            message: 'Golf cart replaced successfully. New cart is in use, and spare slot replenished if available.',
             booking: booking,
             replacedCart: oldGolfCart,
-            newSpareCart: newGolfCart
+            newActiveCart: newGolfCart 
         });
 
     } catch (error) {
-        await session.abortTransaction(); // ยกเลิก Transaction หากมีข้อผิดพลาด
+        await session.abortTransaction();
         console.error('Error in replaceGolfCart:', error);
         res.status(500).json({ message: 'Server error.', error: error.message || "Failed to replace golf cart." });
     } finally {
-        session.endSession(); // จบ Session เสมอ
+        session.endSession();
         console.log("--- End of replaceGolfCart Debug ---");
+    }
+};
+
+export const markCaddyAsAvailable = async (req, res) => {
+    const { bookingId } = req.params; // ✅ รับ bookingId จาก Path Parameter
+    const caddyId = req.user._id;     // ID ของแคดดี้ที่ล็อกอินอยู่
+
+    console.log("--- Debugging markCaddyAsAvailable ---");
+    console.log("Marking caddy and assets available for bookingId:", bookingId); // เพิ่ม log
+    console.log("Caddy ID:", caddyId.toString());
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        // 1. ตรวจสอบสถานะ Caddy ปัจจุบัน
+        const caddy = await User.findById(caddyId).session(session);
+        if (!caddy) {
+            console.log("Caddy not found for ID:", caddyId);
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Caddy not found." });
+        }
+        console.log("Caddy found. Current Caddy Status:", caddy.caddyStatus);
+
+        // ต้องอยู่ในสถานะ 'cleaning' เท่านั้น จึงจะสามารถเปลี่ยนเป็น 'available' ได้
+        if (caddy.caddyStatus !== 'cleaning') {
+            console.log(`Caddy is not in 'cleaning' status. Current status: ${caddy.caddyStatus}. Cannot mark as available.`);
+            await session.abortTransaction();
+            return res.status(400).json({ message: `Caddy is not in 'cleaning' status. Current status: ${caddy.caddyStatus}. Cannot mark as available.` });
+        }
+
+        // 2. หายอดจองที่ระบุด้วย bookingId และตรวจสอบว่า completed และเกี่ยวข้องกับ caddy นี้
+        // ✅ เปลี่ยนจากการหา latestCompletedBooking มาเป็นหา booking โดยตรงจาก bookingId
+        const booking = await Booking.findById(bookingId).session(session);
+
+        if (!booking) {
+            console.log("Booking not found for ID:", bookingId);
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Booking not found." });
+        }
+        console.log("Booking found. Current status:", booking.status);
+
+        // ตรวจสอบว่า Caddy ที่ล็อกอินอยู่ถูกมอบหมายให้กับการจองนี้หรือไม่
+        // *** สำคัญ: เลือกใช้ให้ตรงกับ Schema Booking ของคุณ (caddyId หรือ caddy Array) ***
+        // ถ้า booking.caddyId เป็น ObjectId เดี่ยวๆ:
+        if (!booking.caddyId || booking.caddyId.toString() !== caddyId.toString()) {
+        // ถ้า booking.caddy เป็น Array ของ ObjectId:
+        // if (!booking.caddy || booking.caddy.length === 0 || !booking.caddy.map(id => id.toString()).includes(caddyId.toString())) {
+            console.log("Forbidden: Caddy not assigned to this booking.");
+            await session.abortTransaction();
+            return res.status(403).json({ message: "You are not assigned to this booking." });
+        }
+        console.log("Caddy is assigned to this booking.");
+
+        // ตรวจสอบสถานะของ Booking ต้องเป็น 'completed' เท่านั้น
+        if (booking.status !== 'completed') {
+            console.log(`Booking is not in 'completed' status. Current status: ${booking.status}. Cannot mark assets as available.`);
+            await session.abortTransaction();
+            return res.status(400).json({ message: `Booking is not in 'completed' status. Current status: ${booking.status}.` });
+        }
+
+        console.log(`Processing completed booking (ID: ${booking._id}) for caddy.`);
+        console.log("Booked Golf Cart IDs:", booking.bookedGolfCartIds.map(id => id.toString()));
+        console.log("Booked Golf Bag IDs:", booking.bookedGolfBagIds.map(id => id.toString()));
+
+
+        // 3. อัปเดตสถานะของ Golf Carts จาก 'clean' เป็น 'available'
+        let updatedGolfCartsCount = 0;
+        if (booking.bookedGolfCartIds && booking.bookedGolfCartIds.length > 0) {
+            const resultCarts = await Asset.updateMany(
+                { _id: { $in: booking.bookedGolfCartIds }, status: 'clean' }, // เงื่อนไข: ต้องเป็น 'clean' เท่านั้น
+                { $set: { status: 'available' } },
+                { session: session }
+            );
+            updatedGolfCartsCount = resultCarts.modifiedCount;
+            console.log("Golf Carts - Matched Count:", resultCarts.matchedCount, "Modified Count:", resultCarts.modifiedCount);
+            if (resultCarts.matchedCount !== booking.bookedGolfCartIds.length) {
+                console.warn("WARNING: Some golf carts might not have been in 'clean' status or updated.");
+            }
+        } else {
+            console.log("No golf carts found in this booking.");
+        }
+
+        // 4. อัปเดตสถานะของ Golf Bags จาก 'clean' เป็น 'available'
+        let updatedGolfBagsCount = 0;
+        if (booking.bookedGolfBagIds && booking.bookedGolfBagIds.length > 0) {
+            const resultBags = await Asset.updateMany(
+                { _id: { $in: booking.bookedGolfBagIds }, status: 'clean' }, // เงื่อนไข: ต้องเป็น 'clean' เท่านั้น
+                { $set: { status: 'available' } },
+                { session: session }
+            );
+            updatedGolfBagsCount = resultBags.modifiedCount;
+            console.log("Golf Bags - Matched Count:", resultBags.matchedCount, "Modified Count:", resultBags.modifiedCount);
+            if (resultBags.matchedCount !== booking.bookedGolfBagIds.length) {
+                 console.warn("WARNING: Some golf bags might not have been in 'clean' status or updated.");
+            }
+        } else {
+            console.log("No golf bags found in this booking.");
+        }
+
+        // 5. เปลี่ยนสถานะของแคดดี้จาก 'cleaning' เป็น 'available'
+        caddy.caddyStatus = 'available';
+        await caddy.save({ session });
+        console.log("Caddy status updated to 'available'.");
+
+        await session.commitTransaction();
+
+        res.status(200).json({
+            message: "Caddy and associated assets for this booking are now available after cleaning.",
+            caddy: {
+                _id: caddy._id,
+                name: caddy.name,
+                caddyStatus: caddy.caddyStatus
+            },
+            golfCartsUpdated: updatedGolfCartsCount,
+            golfBagsUpdated: updatedGolfBagsCount
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        console.error("Error in markCaddyAsAvailable:", error);
+        res.status(500).json({ message: 'Server error.', error: error.message || "Failed to mark caddy and assets as available." });
+    } finally {
+        session.endSession();
+        console.log("--- End of markCaddyAsAvailable Debug ---");
     }
 };

@@ -8,7 +8,8 @@ import {
     endRound,
     cancelBeforeStart, 
     cancelDuringRound,
-    replaceGolfCart
+    replaceGolfCart,
+    markCaddyAsAvailable
 } from '../controllers/bookingController.js';
 
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -27,5 +28,6 @@ router.put("/caddy/:bookingId/end-round", protect, authorizeRoles('caddy'), endR
 router.put("/caddy/:bookingId/cancel-before-start", protect, authorizeRoles('caddy'), cancelBeforeStart); // แคดดี้ยกเลิกงานก่อนเริ่ม
 router.put("/caddy/:bookingId/cancel-during-round", protect, authorizeRoles('caddy'), cancelDuringRound); // แคดดี้ยกเลิกงานระหว่างทำ
 router.put("/caddy/:bookingId/replace-golf-cart", protect, authorizeRoles('starter','admin'), replaceGolfCart); // แคดดี้เปลี่ยนรถกอล์ฟ
+router.put("/caddy/mark-available/:bookingId", protect, authorizeRoles('caddy'), markCaddyAsAvailable); // แคดดี้แจ้งทำความสะอาดเสร็จสิ้น
 
 export default router;
