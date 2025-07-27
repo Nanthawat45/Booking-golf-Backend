@@ -9,7 +9,9 @@ import {
     cancelBeforeStart, 
     cancelDuringRound,
     replaceGolfCart,
-    markCaddyAsAvailable
+    markCaddyAsAvailable,
+    caddySelfRelease
+
 } from '../controllers/bookingController.js';
 
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
@@ -29,5 +31,6 @@ router.put("/caddy/:bookingId/cancel-before-start", protect, authorizeRoles('cad
 router.put("/caddy/:bookingId/cancel-during-round", protect, authorizeRoles('caddy'), cancelDuringRound); // แคดดี้ยกเลิกงานระหว่างทำ
 router.put("/caddy/:bookingId/replace-golf-cart", protect, authorizeRoles('starter','admin'), replaceGolfCart); // แคดดี้เปลี่ยนรถกอล์ฟ
 router.put("/caddy/mark-available/:bookingId", protect, authorizeRoles('caddy'), markCaddyAsAvailable); // แคดดี้แจ้งทำความสะอาดเสร็จสิ้น
+router.put("/caddy/self-release/:bookingId", protect, authorizeRoles('caddy'), caddySelfRelease); // แคดดี้ปล่อยตัวเองจากการจอง
 
 export default router;

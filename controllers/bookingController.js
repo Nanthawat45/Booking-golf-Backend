@@ -774,3 +774,126 @@ export const markCaddyAsAvailable = async (req, res) => {
         console.log("--- End of markCaddyAsAvailable Debug ---");
     }
 };
+
+export const caddySelfRelease = async (req, res) => {
+    // ดึง bookingId จาก URL parameters
+    const { bookingId } = req.params;
+    // ดึง ID ของแคดดี้ที่ล็อกอินอยู่จาก req.user (มาจาก middleware 'protect')
+    const caddyId = req.user._id;
+
+    // เริ่ม MongoDB Transaction เพื่อให้แน่ใจว่าการอัปเดตทั้งหมดสำเร็จหรือล้มเหลวพร้อมกัน
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        // 1. ตรวจสอบว่าผู้ใช้ที่เรียกฟังก์ชันนี้เป็น Caddy จริงหรือไม่
+        const caddy = await User.findById(caddyId).session(session);
+        if (!caddy) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Caddy not found." });
+        }
+        if (caddy.role !== 'caddy') {
+            await session.abortTransaction();
+            return res.status(403).json({ message: "Forbidden: Only caddies can perform this action." });
+        }
+
+        console.log(`Caddy '${caddy.name}' (ID: ${caddyId}) attempting to self-release for Booking ID: ${bookingId}`);
+
+        // 2. ตรวจสอบ Booking ID ที่ให้มาว่ามีอยู่จริงหรือไม่
+        const booking = await Booking.findById(bookingId).session(session);
+        if (!booking) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Booking not found for the provided ID." });
+        }
+
+        // ตรวจสอบว่าแคดดี้ที่ล็อกอินอยู่ถูกมอบหมายให้กับการจองนี้หรือไม่
+        // แปลง ObjectId เป็น String เพื่อเปรียบเทียบ
+        if (!booking.caddy.map(id => id.toString()).includes(caddyId.toString())) {
+            await session.abortTransaction();
+            return res.status(403).json({ message: "You are not assigned to this booking." });
+        }
+
+        // 3. ตรวจสอบสถานะของ Booking ว่าได้ "completed" แล้วหรือไม่
+        // นี่คือการยืนยันว่าได้ผ่านขั้นตอน endRound มาแล้ว
+        // if (booking.status !== 'completed') {
+        //     await session.abortTransaction();
+        //     return res.status(400).json({ message: `Booking ID '${bookingId}' is not yet completed. Caddy cannot be released.` });
+        // }
+        // console.log(`Booking ID '${bookingId}' status is 'completed'. Proceeding.`);
+
+        // 4. ตรวจสอบสถานะปัจจุบันของแคดดี้ (ต้องเป็น 'cleaning' ก่อนถึงจะเปลี่ยนเป็น 'available' ได้)
+        if (caddy.caddyStatus === 'available') {
+            // ถ้าแคดดี้ว่างอยู่แล้ว ก็ไม่ต้องทำอะไร
+            await session.abortTransaction();
+            return res.status(200).json({ message: "Caddy is already available.", caddy: caddy });
+        }
+        if (caddy.caddyStatus !== 'cleaning') {
+            // ถ้าแคดดี้ไม่ได้อยู่ในสถานะ 'cleaning' ก็ไม่อนุญาตให้ปลดตัวเอง
+            await session.abortTransaction();
+            return res.status(400).json({ message: `Caddy status is '${caddy.caddyStatus}', not 'cleaning'. Caddy cannot self-release.` });
+        }
+        console.log(`Caddy current status is '${caddy.caddyStatus}'. Proceeding to change to 'available'.`);
+
+
+        // 5. อัปเดตสถานะของรถกอล์ฟที่เกี่ยวข้องจาก 'clean' ให้เป็น 'available'
+        if (booking.bookedGolfCartIds && booking.bookedGolfCartIds.length > 0) {
+            const result = await Asset.updateMany(
+                { _id: { $in: booking.bookedGolfCartIds }, status: 'clean' }, // ค้นหาเฉพาะ Asset ที่อยู่ในสถานะ 'clean'
+                { $set: { status: 'available' } }, // เปลี่ยนสถานะเป็น 'available'
+                { session: session }
+            );
+            console.log(`Updated ${result.modifiedCount} golf carts from 'clean' to 'available'.`);
+            // คุณอาจต้องการเพิ่มการตรวจสอบว่าจำนวน Asset ที่อัปเดตตรงกับที่คาดหวังหรือไม่
+            if (result.modifiedCount !== booking.bookedGolfCartIds.length) {
+                console.warn("Some golf carts were not in 'clean' status or could not be updated to 'available'.");
+            }
+        } else {
+            console.log("No golf carts booked for this booking.");
+        }
+
+        // 6. อัปเดตสถานะของถุงกอล์ฟที่เกี่ยวข้องจาก 'clean' ให้เป็น 'available'
+        if (booking.bookedGolfBagIds && booking.bookedGolfBagIds.length > 0) {
+            const result = await Asset.updateMany(
+                { _id: { $in: booking.bookedGolfBagIds }, status: 'clean' }, // ค้นหาเฉพาะ Asset ที่อยู่ในสถานะ 'clean'
+                { $set: { status: 'available' } }, // เปลี่ยนสถานะเป็น 'available'
+                { session: session }
+            );
+            console.log(`Updated ${result.modifiedCount} golf bags from 'clean' to 'available'.`);
+            if (result.modifiedCount !== booking.bookedGolfBagIds.length) {
+                console.warn("Some golf bags were not in 'clean' status or could not be updated to 'available'.");
+            }
+        } else {
+            console.log("No golf bags booked for this booking.");
+        }
+
+        // 7. เปลี่ยนสถานะของแคดดี้เป็น 'available'
+        const oldStatus = caddy.caddyStatus;
+        caddy.caddyStatus = 'available';
+        await caddy.save({ session });
+        console.log(`Caddy '${caddy.name}' status updated from '${oldStatus}' to 'available'.`);
+
+        // Commit Transaction หากทุกอย่างสำเร็จ
+        await session.commitTransaction();
+        res.status(200).json({
+            message: `Caddy '${caddy.name}' and associated assets are now available.`,
+            caddy: {
+                _id: caddy._id,
+                name: caddy.name,
+                email: caddy.email,
+                role: caddy.role,
+                caddyStatus: caddy.caddyStatus,
+            },
+            bookingIdAcknowledged: bookingId // ส่ง bookingId ที่รับมากลับไปเพื่อยืนยัน
+        });
+
+    } catch (error) {
+        // Rollback Transaction หากมีข้อผิดพลาดเกิดขึ้น
+        await session.abortTransaction();
+        console.error("Error in caddySelfRelease:", error);
+        res.status(500).json({ message: 'Server error.', error: error.message || "Failed to mark caddy and assets as available." });
+    } finally {
+        // ปิด Session ของ Transaction
+        session.endSession();
+        console.log("--- End of caddySelfRelease Debug ---");
+    }
+};
