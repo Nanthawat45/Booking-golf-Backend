@@ -20,18 +20,25 @@
  *           schema:
  *             type: object
  *             required:
+ *               - name
+ *               - assetId
  *               - type 
  *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "GolfCart"
+ *               assetId:
+ *                 type: string
+ *                 example: "GC001"
  *               type:
  *                 type: string
- *                 enum: [golfCart, golfBag]
- *                 description: ประเภทของสินทรัพย์ (รถกอล์ฟหรือถุงกอล์ฟ)
+ *                 enum: [golfCart, golfBags]
  *                 example: "golfCart"
  *     responses:
  *       201:
  *         description: สร้างสินทรัพย์สำเร็จ
  *         content:
- *           golfCart/json:
+ *           application/json:
  *             schema:
  *               type: object
  *               properties:
@@ -49,6 +56,7 @@
  *       500:
  *         description: ข้อผิดพลาดภายในเซิร์ฟเวอร์
  */
+
 
 /**
  * @swagger

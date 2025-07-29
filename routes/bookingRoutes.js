@@ -4,13 +4,11 @@ import {
     getBookings,
     updateBooking,
     deleteBooking,
-    startRound, 
-    endRound,
-    cancelBeforeStart, 
-    cancelDuringRound,
-    replaceGolfCart,
+    // startRound, 
+    // endRound,
+    // cancelBeforeStart, 
+    // cancelDuringRound,
     markCaddyAsAvailable,
-    caddySelfRelease
 
 } from '../controllers/bookingController.js';
 
@@ -25,12 +23,10 @@ router.put("/:id", protect, authorizeRoles('admin'), updateBooking); // อั�
 router.delete("/:id", protect, authorizeRoles('admin'), deleteBooking); // ลบการจอง (Admin/Staff เท่านั้น)
 
 // Routes สำหรับ Caddy โดยเฉพาะ
-router.put("/caddy/:bookingId/start-round", protect, authorizeRoles('caddy'), startRound); // แคดดี้เริ่มงาน
-router.put("/caddy/:bookingId/end-round", protect, authorizeRoles('caddy'), endRound); // แคดดี้จบงาน
-router.put("/caddy/:bookingId/cancel-before-start", protect, authorizeRoles('caddy'), cancelBeforeStart); // แคดดี้ยกเลิกงานก่อนเริ่ม
-router.put("/caddy/:bookingId/cancel-during-round", protect, authorizeRoles('caddy'), cancelDuringRound); // แคดดี้ยกเลิกงานระหว่างทำ
-router.put("/caddy/:bookingId/replace-golf-cart", protect, authorizeRoles('starter','admin'), replaceGolfCart); // แคดดี้เปลี่ยนรถกอล์ฟ
-router.put("/caddy/mark-available/:bookingId", protect, authorizeRoles('caddy'), markCaddyAsAvailable); // แคดดี้แจ้งทำความสะอาดเสร็จสิ้น
-router.put("/caddy/self-release/:bookingId", protect, authorizeRoles('caddy'), caddySelfRelease); // แคดดี้ปล่อยตัวเองจากการจอง
+// router.put("/caddy/:bookingId/start-round", protect, authorizeRoles('caddy'), startRound); // แคดดี้เริ่มงาน
+// router.put("/caddy/:bookingId/end-round", protect, authorizeRoles('caddy'), endRound); // แคดดี้จบงาน
+// router.put("/caddy/:bookingId/cancel-before-start", protect, authorizeRoles('caddy'), cancelBeforeStart); // แคดดี้ยกเลิกงานก่อนเริ่ม
+// router.put("/caddy/:bookingId/cancel-during-round", protect, authorizeRoles('caddy'), cancelDuringRound); // แคดดี้ยกเลิกงานระหว่างทำ
+// router.put("/caddy/mark-available/:bookingId", protect, authorizeRoles('caddy'), markCaddyAsAvailable); // แคดดี้แจ้งทำความสะอาดเสร็จสิ้น
 
 export default router;

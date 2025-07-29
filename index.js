@@ -3,10 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
-import equipment from "./routes/equipment.js";
 import assetRoutes from "./routes/assetRoutes.js";
-import assetSummaryRoutes from "./routes/summaryRoutes.js";
-import issueRoutes from "./routes/issueRoutes.js";
+import caddyRoutes from "./routes/caddyRoutes.js";
 import mongoose from 'mongoose';
 import { setupSwagger } from "./swagger.js";
 import cookieParser from "cookie-parser";
@@ -29,10 +27,8 @@ app.use(cors());
 
 app.use("/api/user", userRoutes);
 app.use("/api/bookings", bookingRoutes);
-app.use("/api/item", equipment);
 app.use("/api/assets", assetRoutes);
-app.use("/api/summary", assetSummaryRoutes);
-app.use('/api/issues', issueRoutes);
+app.use("/api/caddy", caddyRoutes);
 
 setupSwagger(app);
 

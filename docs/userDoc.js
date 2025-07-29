@@ -303,62 +303,6 @@
 //  */
 
 
-/**
- * @swagger
- * /user/caddy/my-assignments:
- *   get:
- *     summary: แคดดี้ดูรายการจองที่ได้รับมอบหมาย
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: รายการที่ได้รับมอบหมาย
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                   date:
- *                     type: string
- *                     format: date
- *                   timeSlot:
- *                     type: string
- *                   groupName:
- *                     type: string
- *                   courseType:
- *                     type: string
- *                   players:
- *                     type: array
- *                     items:
- *                       type: string
- *       401:
- *         description: ต้องเข้าสู่ระบบ
- *       403:
- *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น caddy)
- */
-
-/**
- * @swagger
- * /user/caddy/mark-available:
- *   put:
- *     summary: แคดดี้แจ้งสถานะว่าพร้อมให้บริการอีกครั้ง
- *     tags: [User]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: แคดดี้พร้อมให้บริการ
- *       401:
- *         description: ต้องเข้าสู่ระบบ
- *       403:
- *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น caddy)
- */
-
 // /**
 //  * @swagger
 //  * /user/{id}/caddy-status/{newStatus}:
