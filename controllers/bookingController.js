@@ -1,6 +1,6 @@
 import Booking from '../models/Booking.js';
-import Asset from '../models/Asset.js'; // ตรวจสอบว่าเส้นทางถูกต้อง
-import User from '../models/User.js';   // ตรวจสอบว่าเส้นทางถูกต้อง
+import Asset from '../models/Asset.js';
+import User from '../models/User.js';
 import mongoose from 'mongoose';
 
 // --- ฟังก์ชันช่วยเหลือสำหรับจอง Asset ตามจำนวน (และส่งคืน ID) ---

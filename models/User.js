@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const userSchema = mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },// unique อีเมลต้องไม่ซ้ำกัน
     password: { type: String, required: true },
 role: {
       type: String,
@@ -16,7 +16,7 @@ role: {
       default: 'available', // สถานะเริ่มต้นคือ 'available' (ว่าง)
     }
   },
-  { timestamps: true }
+  { timestamps: true } //เพิ่ม field อัตโนมัติ 2 ฟิลด์ใน ว่าสร้างวันไหนและอัปเดตวันไหน
 );
 
 const User = mongoose.model("User", userSchema);

@@ -1,7 +1,6 @@
 import Booking from '../models/Booking.js';
 import Asset from '../models/Asset.js'; // ตรวจสอบว่าเส้นทางถูกต้อง
 import User from '../models/User.js';   // ตรวจสอบว่าเส้นทางถูกต้อง
-import bookingController from './bookingController.js'; // นำเข้า bookingController เพื่อใช้ฟังก์ชันที่เกี่ยวข้องกับการจอง
 import mongoose from 'mongoose';
 
 // --- ✅ ฟังก์ชัน: แคดดี้เริ่มงาน (Start Round) ---

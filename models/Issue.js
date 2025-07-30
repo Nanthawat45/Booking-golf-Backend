@@ -2,60 +2,57 @@ import mongoose from 'mongoose';
 
 const IssueSchema = new mongoose.Schema({
     holeNumber: {
-        type: Number,
-        required: [true, 'Please provide the hole number.'],
-        min: [1, 'Hole number must be at least 1.'],
-        max: [18, 'Hole number cannot exceed 18.']
+        type: Number,required: true,min: 1,max: 18 
     },
     issueType: {
         type: String,
-        required: [true, 'Please provide the issue type.'],
-        enum: [
+        required: true,
+        enum: [ // กำหนดประเภทของปัญหาที่สามารถแจ้งได้ 
             'hole_closure_report',  // แคดดี้/สตาร์ทเตอร์แจ้งปิดหลุม
             'hole_fix_progress',    // สตาร์ทเตอร์แจ้งกำลังแก้ไขหลุม
             'hole_fix_resolved',    // สตาร์ทเตอร์แจ้งแก้ไขสำเร็จ (หลุมเปิด)
-            'hole_open_report',     // แคดดี้/สตาร์ทเตอร์แจ้งเปิดหลุม (อาจจะเพื่อบันทึกสถานะปกติ)
-            'golf_cart_issue',      // ปัญหารถกอล์ฟ (พักไว้ก่อน)
-            'golf_bag_issue',       // ปัญหาถุงกอล์ฟ (พักไว้ก่อน)
-            'send_golf_cart',       // สตาร์ทเตอร์ส่งรถกอล์ฟ (พักไว้ก่อน)
-            'send_golf_bag'         // สตาร์ทเตอร์ส่งถุงกอล์ฟ (พักไว้ก่อน)
+            'hole_open_report',     // แคดดี้/สตาร์ทเตอร์แจ้งเปิดหลุม
+            'golf_cart_issue',      // ปัญหารถกอล์ฟเสีย
+            'golf_bag_issue',       // ปัญหาถุงกอล์ฟเสีย
+            'send_golf_cart',       // สตาร์ทเตอร์ส่งรถกอล์ฟ 
+            'send_golf_bag'         // สตาร์ทเตอร์ส่งถุงกอล์ฟ
         ]
     },
     description: {
         type: String,
         trim: true,
-        maxlength: [500, 'Description cannot be more than 500 characters.']
+        maxlength: 500 // จำกัดความยาวของคำอธิบายไม่เกิน 500 ตัวอักษร
     },
     status: {
         type: String,
         enum: ['reported', 'in_progress', 'resolved', 'closed'], // closed อาจใช้สำหรับปัญหาเก่ามากๆ ที่ไม่เกี่ยวข้อง
         default: 'reported'
     },
-    reportedBy: {
-        type: mongoose.Schema.ObjectId,
-        ref: 'User',
+    reportedBy: { // เก็บ ID ของผู้ที่รายงานปัญหา
+        type: mongoose.Schema.ObjectId, // เพื่อเชื่อมโยงกับ User
+        ref: 'User', // อ้างอิงถึง User Model
         required: true
     },
     reportedAt: {
-        type: Date,
-        default: Date.now
+        type: Date, // เก็บวันที่และเวลาที่รายงานปัญหา
+        default: Date.now // ใช้วันที่ปัจจุบันเป็นค่าเริ่มต้น
     },
-    resolvedBy: {
+    resolvedBy: { // เก็บ ID ของผู้ที่แก้ไขปัญหา
         type: mongoose.Schema.ObjectId,
         ref: 'User'
     },
-    resolvedAt: {
+    resolvedAt: {   // เก็บวันที่และเวลาที่แก้ไขปัญหา
         type: Date
     },
-    personInCharge: { // สำหรับชื่อคน/ID คนที่ไปแก้ไข หรือนำส่ง
+    personInCharge: { // สำหรับชื่อคน/ID คนที่ไปแก้ไข
         type: String,
         trim: true
     },
-    quantity: { // สำหรับจำนวนรถ/ถุงกอล์ฟเสีย (หากนำกลับมาใช้)
+    quantity: { // สำหรับจำนวนของปัญหาที่เกิดขึ้น เช่น จำนวนรถกอล์ฟที่เสีย
         type: Number
     }
 }, {
-    timestamps: true // เพิ่ม createdAt และ updatedAt โดยอัตโนมัติ
+    timestamps: true //เพิ่ม field อัตโนมัติ 2 ฟิลด์ใน ว่าสร้างวันไหนและอัปเดตวันไหน
 });
 
 export default mongoose.model('Issue', IssueSchema);

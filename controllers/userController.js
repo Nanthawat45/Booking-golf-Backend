@@ -1,19 +1,19 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs"; // ใช้ bcryptjs สำหรับการเข้ารหัสรหัสผ่าน
 import Booking from "../models/Booking.js";
 import mongoose from "mongoose";
 import Asset from "../models/Asset.js";
 
 export const generateToken = (userId, res) => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET, { // เข้ารหัส JWT
     expiresIn: "1d",
   });
 
-  res.cookie("jwt", token, {
+  res.cookie("jwt", token, { // 🔹 ตั้งค่า cookie สำหรับ JWT
     httpOnly: true,
     secure: process.env.NODE_MODE !== "development", // ต้องใช้ https ใน production
-    sameSite: "Lax", // ป้องกัน CSRF (ใช้ "None" ถ้าจะส่งจาก frontend ต่าง origin)
+    sameSite: "Lax", // ป้องกัน CSRF (ใช้ "None" ถ้าจะส่งจาก frontend ต่าง origin) //ป้องกัน cookie หลุด
     maxAge: 24 * 60 * 60 * 1000, // 1 วัน
   });
 };
@@ -21,8 +21,8 @@ export const generateToken = (userId, res) => {
 // 🔹 ลงทะเบียนผู้ใช้
 export const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
-  const userExists = await User.findOne({ email });
-
+  try {
+      const userExists = await User.findOne({ email });
   if (userExists) {
     return res.status(400).json({ message: "User already exists" });
   }
@@ -40,6 +40,9 @@ export const registerUser = async (req, res) => {
     });
   } else {
     res.status(400).json({ message: "Invalid user data" });
+  }
+  } catch (error) {
+    console.log("Error in registerUser:", error);
   }
 };
 

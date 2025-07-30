@@ -2,49 +2,49 @@ import Asset from '../models/Asset.js';
 
 // ฟังก์ชันช่วยเหลือ: เปลี่ยนสถานะ Asset ทั่วไป (ใช้ภายใน controller นี้)
 // **ฟังก์ชันนี้จะทำหน้าที่เป็น Helper สำหรับ setAssetInUse, setAssetClean, setAssetAvailable**
-const updateSpecificAssetStatus = async (assetId, currentStatus, nextStatus, res) => {
-    try {
-        const asset = await Asset.findById(assetId);
+// export const updateSpecificAssetStatus = async (assetId, currentStatus, nextStatus, res) => {
+//     try {
+//         const asset = await Asset.findById(assetId);
 
-        if (!asset) {
-            return res.status(404).json({ message: "Asset not found." });
-        }
+//         if (!asset) {
+//             return res.status(404).json({ message: "Asset not found." });
+//         }
 
-        // ตรวจสอบว่า Asset อยู่ในสถานะที่ถูกต้องก่อนเปลี่ยนหรือไม่
-        if (asset.status !== currentStatus) {
-            return res.status(400).json({ 
-                message: `Asset '${asset.name}' is not in '${currentStatus}' status. Current status: '${asset.status}'. Cannot change to '${nextStatus}'.` 
-            });
-        }
+//         // ตรวจสอบว่า Asset อยู่ในสถานะที่ถูกต้องก่อนเปลี่ยนหรือไม่
+//         if (asset.status !== currentStatus) {
+//             return res.status(400).json({ 
+//                 message: `Asset '${asset.name}' is not in '${currentStatus}' status. Current status: '${asset.status}'. Cannot change to '${nextStatus}'.` 
+//             });
+//         }
 
-        asset.status = nextStatus;
-        await asset.save();
+//         asset.status = nextStatus;
+//         await asset.save();
 
-        res.status(200).json({ 
-            message: `Asset '${asset.name}' status updated from '${currentStatus}' to '${nextStatus}'.`, 
-            asset 
-        });
+//         res.status(200).json({ 
+//             message: `Asset '${asset.name}' status updated from '${currentStatus}' to '${nextStatus}'.`, 
+//             asset 
+//         });
 
-    } catch (error) {
-        console.error(`Error updating asset status to ${nextStatus}:`, error);
-        res.status(500).json({ error: error.message || "Failed to update asset status." });
-    }
-};
+//     } catch (error) {
+//         console.error(`Error updating asset status to ${nextStatus}:`, error);
+//         res.status(500).json({ error: error.message || "Failed to update asset status." });
+//     }
+// };
 
 
 // --- ✅ ฟังก์ชันหลักสำหรับจัดการ Asset (CRUD ทั่วไป) ---
 
-// สร้าง Asset ใหม่ (เวอร์ชันที่รับ name และ type)
-export const createAsset = async (req, res) => {
+// สร้าง Asset ใหม่ (เวอร์ชันที่รับ name และ type) req user ส่งมา res เซิร์ฟเวอร์ส่งกลับ
+export const createAsset = async (req, res) => { 
     try {
-        const { name, type, assetId, description } = req.body;
+        const { name, type, assetId, description } = req.body; //รับbody 
         // ตรวจสอบว่ามี name และ type หรือไม่
-        if (!name || !assetId || !type) {
+        if (!name || !assetId || !type) { //เซ็กว่ามีค่าไหม
             return res.status(400).json({ message: 'Please provide name, assetId, and type for the asset.' });
         }
-        const asset = new Asset({ name, assetId, type, description });
-        await asset.save();
-        res.status(201).json(asset);
+        const asset = new Asset({ name, assetId, type, description });//สร้าง Asset ใหม่
+        await asset.save(); //เซิฟเวอร์บันทึก Asset ลงฐานข้อมูล
+        res.status(201).json(asset); //ส่งกลับ Asset ที่สร้างขึ้นให้ยูสเซอร์
     } catch (error) {
         if (error.code === 11000) {
             if (error.keyValue && error.keyValue.name) {
