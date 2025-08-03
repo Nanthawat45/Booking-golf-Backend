@@ -236,6 +236,36 @@
  *         description: ต้องเป็น admin
  */
 
+/**
+ * @swagger
+ * /user/available-caddies:
+ *   get:
+ *     summary: ดูcaddy ที่ว่างทั้งหมด (Admin , User เท่านั้น)
+ *     tags: [User]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: รายการแคดดี้ที่ว่างอยู่
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   _id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   role:
+ *                     type: string
+ *       403:
+ *         description: ต้องเป็น admin
+ */
+
 // /**
 //  * @swagger
 //  * /user/{id}:

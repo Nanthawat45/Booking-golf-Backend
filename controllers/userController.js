@@ -255,3 +255,12 @@ export const logoutUser = (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 };
 
+export const getAvailableCaddies = async (req, res) => {
+  try {
+    const caddies = await User.find({ role: 'caddy', caddyStatus: 'available' });
+    res.status(200).json(caddies);
+  } catch (error) {
+    console.error("Error in getAvailableCaddies:", error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+};
