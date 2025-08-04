@@ -14,7 +14,11 @@ role: {
       type: String,
       enum: ['available', 'booked', 'onDuty', 'offDuty', 'resting', 'unavailable'], 
       default: 'available', // สถานะเริ่มต้นคือ 'available' (ว่าง)
-    }
+    },
+    // profileImage: {
+    //   type: String, // เช่น เก็บเป็น URL หรือชื่อไฟล์
+    //   default: '',  // หรือจะกำหนดเป็น default รูป placeholder ก็ได้
+    // },
   },
   { timestamps: true } //เพิ่ม field อัตโนมัติ 2 ฟิลด์ใน ว่าสร้างวันไหนและอัปเดตวันไหน
 );

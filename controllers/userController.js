@@ -5,44 +5,44 @@ import Booking from "../models/Booking.js";
 import mongoose from "mongoose";
 import Asset from "../models/Asset.js";
 
-export const generateToken = (userId, res) => {
+export const generateToken = (userId, res) => { //=>{...} Arrow Function
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, { // เข้ารหัส JWT
     expiresIn: "1d",
   });
 
   res.cookie("jwt", token, { // 🔹 ตั้งค่า cookie สำหรับ JWT
-    httpOnly: true,
-    secure: process.env.NODE_MODE !== "development", // ต้องใช้ https ใน production
+    httpOnly: true, //ห้าม JavaScript ฝั่ง frontend อ่าน cookie
+    secure: process.env.NODE_MODE !== "development", // ตรวจสอบว่าถ้าเป็น development ต้อใช่ http ถ้าเป็น production ต้องเป็น https
     sameSite: "Lax", // ป้องกัน CSRF (ใช้ "None" ถ้าจะส่งจาก frontend ต่าง origin) //ป้องกัน cookie หลุด
     maxAge: 24 * 60 * 60 * 1000, // 1 วัน
   });
 };
 
 // 🔹 ลงทะเบียนผู้ใช้
-export const registerUser = async (req, res) => {
-  const { name, email, password } = req.body;
+export const registerUser = async (req, res) => { // = async (req, res) => { คือ Asynchronous
+  const { name, email, password } = req.body;  // ดึงข้อมูลจาก req.body ซึ่งคือ JSON ที่ผู้ใช้กรอกมาจาก frontend
   try {
-      const userExists = await User.findOne({ email });
+      const userExists = await User.findOne({ email }); // ตรวจสอบว่ามีผู้ใช้ที่มีอีเมลนี้อยู่แล้วหรือไม่
   if (userExists) {
-    return res.status(400).json({ message: "User already exists" });
+    return res.status(400).json({ message: "User already exists" });// ถ้ามีผู้ใช้ที่มีอีเมลนี้อยู่แล้ว ให้ส่งข้อความว่า มีผู้ใช้อยู่แล้ว
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hashedPassword, role: 'user' });
+  const hashedPassword = await bcrypt.hash(password, 10);  // เข้ารหัสรหัสผ่านด้วย bcrypt //10 คือจำนวนรอบในการเข้ารหัส (salt rounds)
+  const user = await User.create({ name, email, password: hashedPassword, role: 'user' }); // สร้างผู้ใช้ใหม่ในฐานข้อมูล
 
-  if (user) {
-    generateToken(user._id, res); // set cookie
-    res.status(201).json({
+  if (user) {  // ถ้าสร้างผู้ใช้สำเร็จ
+    generateToken(user._id, res);  // สร้าง JWT และตั้งค่า cookie
+    res.status(201).json({ //ส่งข้อมูลผู้ใช้กลับไปให้ (ยืนยันว่าสมัครสำเร็จ)
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
     });
   } else {
-    res.status(400).json({ message: "Invalid user data" });
+    res.status(400).json({ message: "Invalid user data" });  // ถ้าไม่สามารถสร้างผู้ใช้ได้ ให้ส่งข้อความว่า ข้อมูลผู้ใช้ไม่ถูกต้อง
   }
   } catch (error) {
-    console.log("Error in registerUser:", error);
+    console.log("Error in registerUser:", error);// ข้อผิดพลาดในการลงทะเบียนผู้ใช้
   }
 };
 
@@ -51,8 +51,8 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
 
-  if (user && (await bcrypt.compare(password, user.password))) {
-    generateToken(user._id, res); // set cookie
+  if (user && (await bcrypt.compare(password, user.password))) { //compare เปรียบเทียบรหัสผ่านที่ผู้ใช้กรอกกับรหัสผ่านที่เก็บไว้ในฐานข้อมูล
+    generateToken(user._id, res); // สร้าง JWT และตั้งค่า cookie
     res.json({
       _id: user._id,
       name: user.name,
@@ -60,13 +60,13 @@ export const loginUser = async (req, res) => {
       role: user.role,
     });
   } else {
-    res.status(401).json({ message: "Invalid email or password" });
+    res.status(401).json({ message: "Invalid email or password" }); // ถ้าอีเมลหรือรหัสผ่านไม่ถูกต้อง ให้ส่งข้อความว่า อีเมลหรือรหัสผ่านไม่ถูกต้อง
   }
 };
 
 // 🔹 ดึงข้อมูลโปรไฟล์
-export const getUserProfile = async (req, res) => {
-  const user = await User.findById(req.user.id);
+export const getUserProfile = async (req, res) => { //Asynchronous 
+  const user = await User.findById(req.user.id); //findById คือ
 
   if (user) {
     res.json({
@@ -76,7 +76,7 @@ export const getUserProfile = async (req, res) => {
        role: user.role,
      });
   } else {
-    res.status(404).json({ message: "User not found" });
+    res.status(404).json({ message: "User not found" }); // ถ้าไม่พบผู้ใช้ ให้ส่งข้อความว่า ไม่พบผู้ใช้
   }
 };
 
