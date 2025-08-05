@@ -5,65 +5,68 @@ import mongoose from 'mongoose';
 
 // --- ฟังก์ชันช่วยเหลือสำหรับจอง Asset ตามจำนวน (และส่งคืน ID) ---
 const reserveAssets = async (assetType, quantity, session) => {
-  if (quantity <= 0) {
-    return [];
+  if (quantity <= 0) { //ถ้าจำนวนที่ขอจอง (quantity) น้อยกว่าหรือเท่ากับ 0
+    return []; // คืนค่า array เป็น null หรือว่าง
   }
 
-  const availableAssets = await Asset.find({ 
-    type: assetType, 
-    status: "available" 
-  }).limit(quantity).session(session);
-
-  if (availableAssets.length < quantity) {
+  const availableAssets = await Asset.find({ //ใช้โมเดล Asset เพื่อค้นหาข้อมูล
+    type: assetType, // กำหนดประเภทของ Asset ที่ต้องการจอง (เช่น golfCart หรือ golfBag)
+    status: "available" // เงื่อนไข: สถานะต้องเป็น 'available' เท่านั้น
+  }).limit(quantity).session(session); //.limit(quantity) — จำกัดจำนวนผลลัพธ์ที่ได้ไม่เกินจำนวนที่ขอจอง
+  //.session(session) — ทำงานใน MongoDB session ที่ส่งเข้ามา (transaction)
+  if (availableAssets.length < quantity) { // ถ้าจำนวน Asset ที่ว่างน้อยกว่าที่ขอจอง
     throw new Error(`Not enough ${assetType}s available. Requested: ${quantity}, Available: ${availableAssets.length}`);
+    // แจ้งข้อผิดพลาดว่าจำนวน Asset ที่ว่างไม่เพียงพอ //throw คือการบอกโปรแกรมว่า "เจอปัญหา หยุดทำงาน
   }
 
-  const assetIdsToUpdate = availableAssets.map(asset => asset._id);
+  const assetIdsToUpdate = availableAssets.map(asset => asset._id); // สร้างอาเรย์ของ ID ของ Asset ที่จะถูกจอง
   
-  await Asset.updateMany(
-    { _id: { $in: assetIdsToUpdate } },
-    { $set: { status: "booked" } },
-    { session: session }
+  await Asset.updateMany( //updateMany() เป็นคำสั่งแก้ไขหลายอย่างพร้อมกัน
+    { _id: { $in: assetIdsToUpdate } }, //ค้นหา Asset ที่มี ID อยู่ใน assetIdsToUpdate
+    { $set: { status: "booked" } }, //เปลี่ยนสถานะ status เป็น 'booked'
+    { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
   );
 
-  return assetIdsToUpdate;
+  return assetIdsToUpdate;// ส่งคืน ID ของ Asset ที่ถูกจองไปแล้ว
 };
 
 // --- ฟังก์ชันช่วยเหลือสำหรับจองแคดดี้ ---
 const reserveCaddies = async (caddyIds, session) => {
-  if (!caddyIds || caddyIds.length === 0) {
-    return []; // คืนค่า array ว่าง ถ้าไม่มีการเลือกแคดดี้
+  if (!caddyIds || caddyIds.length === 0) { // ถ้าไม่มีการเลือกแคดดี้
+    return []; // คืนค่า array เป็น null หรือว่าง
   }
 
   // ค้นหาแคดดี้ที่ถูกเลือก และต้องมี role เป็น 'caddy' และ status เป็น 'available'
-  const availableCaddies = await User.find({
-    _id: { $in: caddyIds },
+  const availableCaddies = await User.find({ //find() ค้นหาค้นหนข้อมูล { }
+    _id: { $in: caddyIds }, // ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$ in ใช้เลือกข้อมูลที่ _id อยู่ใน array
     role: 'caddy',
     caddyStatus: 'available'
-  }).session(session);
+  }).session(session); // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction ที่เราต้องการควบคุม 
+  // //หมายความว่า ถ้าธุรกรรมถูกยกเลิก (abortTransaction) ทุกคำสั่งที่ใช้ session นี้ก็จะถูกย้อนกลับด้วย 
 
   // ตรวจสอบว่าแคดดี้ที่เลือกมาทั้งหมดว่างจริงหรือไม่
-  if (availableCaddies.length !== caddyIds.length) {
-    const bookedCaddyIds = availableCaddies.map(caddy => caddy._id.toString());
-    const unavailableRequestedCaddyIds = caddyIds.filter(id => !bookedCaddyIds.includes(id.toString()));
+  if (availableCaddies.length !== caddyIds.length) { //เช็คว่า จำนวนแคดดี้ที่เจอ (ที่ว่างและเป็นแคดดี้จริง ๆ) เท่ากับจำนวนที่ลูกค้าขอจองหรือไม่
+    const bookedCaddyIds = availableCaddies.map(caddy => caddy._id.toString()); //bookedCaddyIds คือการแปลง ID ของแคดดี้ที่ว่างให้เป็น string เพื่อเทียบกัน
+    const unavailableRequestedCaddyIds = caddyIds.filter(id => !bookedCaddyIds.includes(id.toString())); //ดึง _id ของแคดดี้ที่ยังว่าง และแปลงเป็น string ทั้งหมด เพื่อเอาไปเทียบกับ caddyIds ที่ส่งเข้ามา ว่าคนไหน “ไม่ว่าง”
     throw new Error(`Some selected caddies are not available or do not exist/are not caddies: ${unavailableRequestedCaddyIds.join(', ')}`);
+    // ถ้าไม่ว่างหรือไม่ใช่แคดดี้จริง ๆ ให้ error //throw คือการบอกโปรแกรมว่า "เจอปัญหาแล้ว หยุดทำงานตรงนี้
+    //ถ้าไม่มี throw ระบบจะ อัปเดตแคดดี้แม้จะมีบางคนไม่ว่าง → ทำให้ข้อมูลไม่ถูกต้อง
   }
 
   // เปลี่ยนสถานะของแคดดี้ที่จองแล้วให้เป็น "booked"
-  await User.updateMany(
-    { _id: { $in: caddyIds } },
-    { $set: { caddyStatus: "booked" } },
-    { session: session }
+  await User.updateMany( //updateMany() เป็นคำสั่งแก้ไขหลายอย่างพร้อมกัน
+    { _id: { $in: caddyIds } }, //ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$in ใช้เลือกข้อมูลที่ _id อยู่ใน array
+    { $set: { caddyStatus: "booked" } }, //เปลี่ยนสถานะ caddyStatus เป็น "booked"
+    { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
   );
 
   return caddyIds; // ส่งคืน ID ของแคดดี้ที่ถูกจองไปแล้ว
 };
 
-
 // --- 🔹 จองเวลาออกรอบ (Book Slot) ---
 export const bookSlot = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const session = await mongoose.startSession(); //startSession() เพื่อใช้ commitTransaction() ถ้าผ่าน ไม่ผ่านใช้ abortTransaction()
+  session.startTransaction(); // เริ่มต้น session สำหรับการทำธุรกรรม // ทุกการแก้ไขข้อมูลต่อจากนี้จะยังไม่ถาวร จนกว่าจะ commit
 
   try {
     const { 
@@ -83,7 +86,7 @@ export const bookSlot = async (req, res) => {
     const bookedCaddyIds = await reserveCaddies(caddy, session); 
 
     const booking = new Booking({
-      user: req.user._id, 
+      user: req.user._id, // โมเดล User โดยเก็บ _id ของผู้ใช้
       courseType,
       date,
       timeSlot,
@@ -98,18 +101,16 @@ export const bookSlot = async (req, res) => {
       bookedGolfBagIds: bookedGolfBagIds,   
     });
 
-    await booking.save({ session });
-
-    await session.commitTransaction();
-
+    await booking.save({ session }); // บันทึกการจองในฐานข้อมูล
+    await session.commitTransaction(); // ยืนยันการทำธุรกรรม จะบันทึกถาวร การเปลี่ยนแปลงทั้งหมดใน transaction
     res.status(201).json({ message: "Booking Successful", booking });
 
   } catch (error) {
-    await session.abortTransaction();
-    console.error("Booking failed:", error);
-    res.status(400).json({ error: error.message || "Failed to make booking." });
+    await session.abortTransaction(); // ยกเลิกการทำธุรกรรม ถ้ามีข้อผิดพลาดเกิดขึ้น จะไม่บันทึกการเปลี่ยนแปลงใดๆทั้งหมด
+    console.error("Booking failed:", error); // แสดงข้อผิดพลาดใน console
+    res.status(400).json({ error: error.message || "Failed to make booking." }); // ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
   } finally {
-    session.endSession();
+    session.endSession(); // ปิด session ไม่ว่าจะสำเร็จหรือไม่
   }
 };
 

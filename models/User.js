@@ -10,6 +10,7 @@ role: {
       enum: ['admin', 'user', 'caddy', 'starter'],
       default: 'user',
     },
+    
   caddyStatus: { 
       type: String,
       enum: ['available', 'booked', 'onDuty', 'offDuty', 'resting', 'unavailable'], 
