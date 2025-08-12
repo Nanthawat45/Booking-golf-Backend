@@ -63,7 +63,7 @@ const reserveCaddies = async (caddyIds, session) => {
   return caddyIds; // ส่งคืน ID ของแคดดี้ที่ถูกจองไปแล้ว
 };
 
-// --- 🔹 จองเวลาออกรอบ (Book Slot) ---
+// ---  จองเวลาออกรอบ (Book Slot) ---
 export const bookSlot = async (req, res) => {
   const session = await mongoose.startSession(); //startSession() เพื่อใช้ commitTransaction() ถ้าผ่าน ไม่ผ่านใช้ abortTransaction()
   session.startTransaction(); // เริ่มต้น session สำหรับการทำธุรกรรม // ทุกการแก้ไขข้อมูลต่อจากนี้จะยังไม่ถาวร จนกว่าจะ commit
@@ -114,58 +114,60 @@ export const bookSlot = async (req, res) => {
   }
 };
 
-// --- 🔹 ดึงรายการจองทั้งหมด ---
+// ---  ดึงรายการจองทั้งหมด ---
 export const getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate('caddy', 'name email caddyStatus') 
+    const bookings = await Booking.find() // รอ ค้นหาทุกการจอง
+      .populate('caddy', 'name email caddyStatus') // populate() ใช้เพื่อดึงข้อมูลแคดดี้ที่เกี่ยวข้องกับการจอง
       .populate('bookedGolfCartIds', 'name type status') 
       .populate('bookedGolfBagIds', 'name type status'); 
-    res.json(bookings);
+    res.json(bookings); // ส่งข้อมูลการจองทั้งหมดที่ได้มากลับไปยังผู้เรียกใช้ API ในรูปแบบของ JSON
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message }); // ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
   }
 };
 
-// --- 🔹 อัปเดตรายการจอง (ยังไม่รวมการจัดการแคดดี้ หรือ Asset) ---
+// ---  อัปเดตรายการจอง (ยังไม่รวมการจัดการแคดดี้ หรือ Asset) ---
 export const updateBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id);// params ใช้ ID ที่ส่งมาใน URL 
 
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
+    if (!booking) { // ถ้าไม่พบการจองด้วย ID ที่ระบุ
+      return res.status(404).json({ message: "Booking not found" }); // ส่งข้อความว่าไม่พบการจอง
     }
 
-    if (req.body.timeSlot) {
-      booking.timeSlot = req.body.timeSlot;
+    if (req.body.timeSlot) {// ถ้ามีการส่ง timeSlot มาใน body ของ request
+      booking.timeSlot = req.body.timeSlot; // อัปเดต timeSlot ของการจอง
     } else {
-      return res.status(400).json({ message: "Only 'timeSlot' can be updated for this endpoint" });
+      return res.status(400).json( 
+        { message: "Only 'timeSlot' can be updated for this endpoint" });// ถ้าไม่มี timeSlot ให้ส่งข้อความว่าไม่สามารถอัปเดตได้
     }
 
-    const updatedBooking = await booking.save();
+    const updatedBooking = await booking.save(); // บันทึกการเปลี่ยนแปลงการจองในฐานข้อมูล
 
-    res.status(200).json({ message: "Booking updated successfully", booking: updatedBooking });
+    res.status(200).json({ 
+      message: "Booking updated successfully", booking: updatedBooking }); // ส่งข้อความยืนยันการอัปเดตและข้อมูลการจองที่อัปเดตแล้วกลับไปยังผู้ใช้
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message});// ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
   }
 };
 
-// --- 🔹 ลบรายการจอง (Admin/Staff) ---
+// ---  ลบรายการจอง (Admin/Staff) ---
 export const deleteBooking = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const session = await mongoose.startSession(); // เริ่มต้น session สำหรับการทำธุรกรรม
+  session.startTransaction(); // เริ่มต้น transaction
   try {
-    const booking = await Booking.findById(req.params.id).session(session);
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found" });
+    const booking = await Booking.findById(req.params.id).session(session); // ค้นหาการจองด้วย ID ที่ระบุใน URL
+    if (!booking) { // ถ้าไม่พบการจองด้วย ID ที่ระบุ
+      return res.status(404).json({ message: "Booking not found" }); // ส่งข้อความว่าไม่พบการจอง
     }
     
     // คืนสถานะ Asset
-    if (booking.bookedGolfCartIds.length > 0) {
-      await Asset.updateMany(
-        { _id: { $in: booking.bookedGolfCartIds } },
-        { $set: { status: "available" } },
-        { session: session }
+    if (booking.bookedGolfCartIds.length > 0) { // ถ้ามีการจอง Golf Cart
+      await Asset.updateMany( // updateMany() ใช้เพื่ออัปเดตหลายรายการพร้อมกัน
+        { _id: { $in: booking.bookedGolfCartIds } }, // ค้นหา Asset ที่มี ID อยู่ใน bookedGolfCartIds
+        { $set: { status: "available" } }, // เปลี่ยนสถานะ status เป็น 'available'
+        { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
       );
     }
     if (booking.bookedGolfBagIds.length > 0) {
@@ -185,54 +187,58 @@ export const deleteBooking = async (req, res) => {
         );
     }
 
-    await booking.deleteOne({ session });
+    await booking.deleteOne({ session }); // ลบการจองออกจากฐานข้อมูล // deleteOne() ใช้เพื่อลบเอกสารเดียว
 
-    await session.commitTransaction();
-    res.status(200).json({ message: "Booking deleted successfully, assets and caddies returned to available." });
+    await session.commitTransaction(); // ยืนยันการทำธุรกรรม จะบันทึกถาวร การเปลี่ยนแปลงทั้งหมดใน transaction // commitTransaction() จะทำให้การเปลี่ยนแปลงที่ทำใน session นี้เป็นถาวร
+    res.status(200).json({ 
+      message: "Booking deleted successfully, assets and caddies returned to available." }); // ส่งข้อความยืนยันการลบการจองและคืนสถานะ Asset และ Caddy กลับไปยังผู้ใช้
   } catch (error) {
-    await session.abortTransaction();
-    console.error("Error deleting booking:", error);
-    res.status(500).json({ error: error.message || "Failed to delete booking." });
-  } finally {
-    session.endSession();
+    await session.abortTransaction();// ยกเลิกการทำธุรกรรม ถ้ามีข้อผิดพลาดเกิดขึ้น จะไม่บันทึกการเปลี่ยนแปลงใดๆทั้งหมด
+    console.error("Error deleting booking:", error); // แสดงข้อผิดพลาดใน console
+    res.status(500).json({ error: error.message || "Failed to delete booking." }); // ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
+  } finally { // finally คือบล็อกที่ทำงานเสร็จสิ้นไม่ว่าจะเกิดข้อผิดพลาดหรือไม่
+    session.endSession(); // ปิด session ไม่ว่าจะสำเร็จหรือไม่ 
   }
 };
 
-// --- ✅ ฟังก์ชัน: แคดดี้เริ่มงาน (Start Round) ---
+// ---  ฟังก์ชัน: แคดดี้เริ่มงาน (Start Round) ---
 export const startRound = async (req, res) => {
-  const { bookingId } = req.params;
+  const { bookingId } = req.params; // ดึง bookingId จากพารามิเตอร์ของ URL
   const caddyId = req.user._id; // ID ของแคดดี้ที่ล็อกอินอยู่
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const session = await mongoose.startSession(); // เริ่มต้น session สำหรับการทำธุรกรรม
+  session.startTransaction(); // เริ่มต้น transaction
 
   try {
-    const booking = await Booking.findById(bookingId).session(session);
+    const booking = await Booking.findById(bookingId).session(session); // ค้นหาการจองด้วย ID ที่ระบุใน bookingId
 
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found." });
+      return res.status(404).json({
+         message: "Booking not found." });// ถ้าไม่พบการจองด้วย ID ที่ระบุ ให้ส่งข้อความว่าไม่พบการจอง
     }
 
     // ตรวจสอบว่าแคดดี้ที่ล็อกอินอยู่ถูกมอบหมายให้กับการจองนี้หรือไม่
-    if (!booking.caddy.map(id => id.toString()).includes(caddyId.toString())) {
-        return res.status(403).json({ message: "You are not assigned to this booking." });
+    if (!booking.caddy.map(id => id.toString()).includes(caddyId.toString())) { // booking.caddy: คือ array ของ ID แคดดี้ที่ถูกมอบหมายให้กับการจองนี้
+      // .map ใช้แปลงทุก ID ใน array ให้เป็น string เพื่อให้เปรียบเทียบ // includes(caddyId.toString()): ตรวจสอบว่า caddyId ของแคดดี้ที่ล็อกอินอยู่มีอยู่ใน array นี้หรือไม่
+        return res.status(403).json({ 
+          message: "You are not assigned to this booking." }); // ถ้าไม่ใช่แคดดี้ที่ถูกมอบหมายให้กับการจองนี้ ให้ส่งข้อความว่าไม่ได้รับอนุญาต
     }
 
     // ตรวจสอบสถานะปัจจุบันของ Asset และ Caddy ก่อนเปลี่ยน
-    const currentCaddy = await User.findById(caddyId).session(session);
-    if (!currentCaddy || currentCaddy.caddyStatus !== 'booked') {
-      throw new Error("Caddy is not in 'booked' status or not found.");
+    const currentCaddy = await User.findById(caddyId).session(session); // ค้นหาแคดดี้ที่ล็อกอินอยู่
+    if (!currentCaddy || currentCaddy.caddyStatus !== 'booked') { // ถ้าไม่พบแคดดี้ หรือสถานะของแคดดี้ไม่ใช่ 'booked'
+      throw new Error("Caddy is not in 'booked' status or not found."); // แจ้งข้อผิดพลาดว่าแคดดี้ไม่อยู่ในสถานะ 'booked' หรือไม่พบ
     }
 
     // 1. เปลี่ยนสถานะของ Golf Carts จาก 'booked' เป็น 'inUse'
-    if (booking.bookedGolfCartIds && booking.bookedGolfCartIds.length > 0) {
-      const result = await Asset.updateMany(
-        { _id: { $in: booking.bookedGolfCartIds }, status: 'booked' },
-        { $set: { status: 'inUse' } },
-        { session: session }
+    if (booking.bookedGolfCartIds && booking.bookedGolfCartIds.length > 0) { // ถ้ามีการจอง มากกว่า 0
+      const result = await Asset.updateMany(  // updateMany() ใช้เพื่ออัปเดตหลายรายการพร้อมกัน
+        { _id: { $in: booking.bookedGolfCartIds }, status: 'booked' }, // ค้นหา Asset ที่มี ID อยู่ใน bookedGolfCartIds และสถานะเป็น booked ไหม
+        { $set: { status: 'inUse' } }, // เปลี่ยนสถานะ status เป็น inUse
+        { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
       );
-      if (result.modifiedCount !== booking.bookedGolfCartIds.length) {
-          throw new Error("Not all golf carts were in 'booked' status or updated.");
+      if (result.modifiedCount !== booking.bookedGolfCartIds.length) { // ถ้าจำนวนที่ถูกแก้ไขไม่เท่ากับจำนวนที่จองไว้
+          throw new Error("Not all golf carts were in 'booked' status or updated."); // แจ้งข้อผิดพลาดว่าไม่สามารถเปลี่ยนสถานะของรถกอล์ฟทั้งหมดได้
       }
     }
 
@@ -249,21 +255,22 @@ export const startRound = async (req, res) => {
     }
 
     // 3. เปลี่ยนสถานะของแคดดี้จาก 'booked' เป็น 'onDuty'
-    await User.updateOne(
+    await User.updateOne( // updateOne() ใช้เพื่ออัปเดตครั้งเดียว
       { _id: caddyId, caddyStatus: 'booked' },
       { $set: { caddyStatus: 'onDuty' } },
-      { session: session }
+      { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
     );
 
-    await session.commitTransaction();
-    res.status(200).json({ message: "Round started successfully. Assets and caddy are now in use.", booking });
+    await session.commitTransaction(); // ยืนยันการทำธุรกรรม จะบันทึกถาวร การเปลี่ยนแปลงทั้งหมดใน transaction
+    res.status(200).json({ 
+      message: "Round started successfully. Assets and caddy are now in use.", booking }); // ส่งข้อความยืนยันการเริ่มงานและข้อมูลการจองกลับไปยังผู้ใช้
 
   } catch (error) {
-    await session.abortTransaction();
-    console.error("Failed to start round:", error);
-    res.status(400).json({ error: error.message || "Failed to start round." });
+    await session.abortTransaction(); // ยกเลิกการทำธุรกรรม ถ้ามีข้อผิดพลาดเกิดขึ้น จะไม่บันทึกการเปลี่ยนแปลงใดๆทั้งหมด
+    console.error("Failed to start round:", error);// แสดงข้อผิดพลาดใน console
+    res.status(400).json({ error: error.message || "Failed to start round." });// ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
   } finally {
-    session.endSession();
+    session.endSession();// ปิด session ไม่ว่าจะสำเร็จหรือไม่
   }
 };
 
