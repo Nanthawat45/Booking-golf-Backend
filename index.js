@@ -5,6 +5,7 @@ import userRoutes from "./routes/userRoutes.js";
 import bookingRoutes from "./routes/bookingRoutes.js";
 import assetRoutes from "./routes/assetRoutes.js";
 import caddyRoutes from "./routes/caddyRoutes.js";
+import issueRoutes from "./routes/issueRoutes.js";
 import mongoose from 'mongoose';
 import { setupSwagger } from "./swagger.js";
 import cookieParser from "cookie-parser";
@@ -29,7 +30,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/caddy", caddyRoutes);
-
+app.use("/api/issues", issueRoutes);
 setupSwagger(app);
 
 const PORT = process.env.PORT || 5000;
