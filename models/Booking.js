@@ -19,6 +19,12 @@ const bookingSchema = new mongoose.Schema({
   isPaid: { type: Boolean, //เก็บค่าประเภท จริง/เท็จ (true/false)
     default: false //ค่าเริ่มต้นเป็น false
   },
+  status: { 
+        type: String, 
+        enum: ['pending', 'onGoing', 'completed', 'canceled'], // กำหนดสถานะที่สามารถเป็นไปได้
+        default: 'pending', // สถานะเริ่มต้นเมื่อสร้างการจอง
+        required: true // ฟิลด์นี้จำเป็นต้องมี
+    },
   golfCartQty: { type: Number, default: 0 }, 
   golfBagQty: { type: Number, default: 0 }, 
   

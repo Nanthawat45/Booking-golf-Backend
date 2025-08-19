@@ -180,6 +180,7 @@
  *         description: สิทธิ์ไม่เพียงพอ (ต้องเป็น caddy)
  */
 
+/* ---------- Caddy แคดดี้ดูรายการจอง2 ---------- */
 /**
  * @swagger
  * /caddy/my-assignments2:

@@ -101,7 +101,8 @@ export const bookSlot = async (req, res) => {
       golfCartQty,
       golfBagQty,
       bookedGolfCartIds: bookedGolfCartIds, 
-      bookedGolfBagIds: bookedGolfBagIds,   
+      bookedGolfBagIds: bookedGolfBagIds,
+      status: 'pending'   
     });
 
     await booking.save({ session }); // บันทึกการจองในฐานข้อมูล

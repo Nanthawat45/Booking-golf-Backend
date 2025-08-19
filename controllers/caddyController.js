@@ -59,9 +59,12 @@ export const startRound = async (req, res) => {
       { $set: { caddyStatus: 'onDuty' } },
       { session: session }
     );
+    // 4. เพิ่ม: เปลี่ยนสถานะของ Booking จาก 'pending' เป็น 'onGoing'
+        booking.status = 'onGoing'; //booking.status คือการเปลี่ยนสถานะการจอง //อัพเดทข้อมูลอันเดียว
+        await booking.save({ session }); // บันทึกการเปลี่ยนแปลงสถานะการจอง // session ช่วยให้การเปลี่ยนแปลงนี้เป็นส่วนหนึ่งของ Transaction
 
     await session.commitTransaction();
-    res.status(200).json({ message: "Round started successfully. Assets and caddy are now in use.", booking });
+    res.status(200).json({ message: "Round started successfully. Assets and caddy are now in use.", booking });//
 
   } catch (error) {
     await session.abortTransaction();
@@ -171,11 +174,9 @@ export const endRound = async (req, res) => {
              throw new Error("Caddy status could not be updated to 'cleaning'.");
         }
         console.log("Caddy status updated to 'cleaning'.");
+        
 
-        // 4. เปลี่ยนสถานะการจองเป็น 'completed'
-        booking.status = 'completed'; // หรือ 'finished' หรือ 'ended' ตามที่คุณกำหนดใน Schema
-        await booking.save({ session });
-        console.log("Booking status updated to 'completed'.");
+        
 
         await session.commitTransaction();
         res.status(200).json({ message: "Round ended successfully. Assets are now clean and caddy is cleaning.", booking });
