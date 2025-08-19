@@ -15,12 +15,14 @@ const reserveAssets = async (assetType, quantity, session) => {
   }).limit(quantity).session(session); //.limit(quantity) — จำกัดจำนวนผลลัพธ์ที่ได้ไม่เกินจำนวนที่ขอจอง
   //.session(session) — ทำงานใน MongoDB session ที่ส่งเข้ามา (transaction)
   if (availableAssets.length < quantity) { // ถ้าจำนวน Asset ที่ว่างน้อยกว่าที่ขอจอง
-    throw new Error(`Not enough ${assetType}s available. Requested: ${quantity}, Available: ${availableAssets.length}`);
-    // แจ้งข้อผิดพลาดว่าจำนวน Asset ที่ว่างไม่เพียงพอ //throw คือการบอกโปรแกรมว่า "เจอปัญหา หยุดทำงาน
+    throw new Error(`Not enough ${assetType} available. Requested: ${quantity}, Available: ${availableAssets.length}`);
+    // แจ้งข้อผิดพลาดว่าจำนวน Asset ที่ว่างไม่เพียงพอ //throw คือการบอกโปรแกรมว่า "เจอปัญหา หยุดทำงาน 
+   // ${assetType} คือการแทรกค่าของ assetType ที่ส่งเข้ามา // ${quantity} คือการแทรกค่าของ quantity ที่ส่งเข้ามา
+   //${availableAssets.length} คือการแทรกจำนวน Asset ที่ว่างที่เจอ
   }
 
   const assetIdsToUpdate = availableAssets.map(asset => asset._id); // สร้างอาเรย์ของ ID ของ Asset ที่จะถูกจอง
-  
+  // asset => asset._id คือการเข้าถึง _id ของแต่ละ Asset ในอาเรย์ availableAssets
   await Asset.updateMany( //updateMany() เป็นคำสั่งแก้ไขหลายอย่างพร้อมกัน
     { _id: { $in: assetIdsToUpdate } }, //ค้นหา Asset ที่มี ID อยู่ใน assetIdsToUpdate
     { $set: { status: "booked" } }, //เปลี่ยนสถานะ status เป็น 'booked'
@@ -32,7 +34,7 @@ const reserveAssets = async (assetType, quantity, session) => {
 
 // --- ฟังก์ชันช่วยเหลือสำหรับจองแคดดี้ ---
 const reserveCaddies = async (caddyIds, session) => {
-  if (!caddyIds || caddyIds.length === 0) { // ถ้าไม่มีการเลือกแคดดี้
+  if (!caddyIds || caddyIds.length === 0) { // ถ้าไม่มีการเลือกแคดดี้ // === 0 คือการเช็คว่า array ว่างหรือไม่ 
     return []; // คืนค่า array เป็น null หรือว่าง
   }
 
@@ -48,9 +50,10 @@ const reserveCaddies = async (caddyIds, session) => {
   if (availableCaddies.length !== caddyIds.length) { //เช็คว่า จำนวนแคดดี้ที่เจอ (ที่ว่างและเป็นแคดดี้จริง ๆ) เท่ากับจำนวนที่ลูกค้าขอจองหรือไม่
     const bookedCaddyIds = availableCaddies.map(caddy => caddy._id.toString()); //bookedCaddyIds คือการแปลง ID ของแคดดี้ที่ว่างให้เป็น string เพื่อเทียบกัน
     const unavailableRequestedCaddyIds = caddyIds.filter(id => !bookedCaddyIds.includes(id.toString())); //ดึง _id ของแคดดี้ที่ยังว่าง และแปลงเป็น string ทั้งหมด เพื่อเอาไปเทียบกับ caddyIds ที่ส่งเข้ามา ว่าคนไหน “ไม่ว่าง”
+    // filter ใช้เพื่อกรองข้อมูลที่ไม่ตรงตามเงื่อนไขที่กำหนด // includes() ใช้เพื่อตรวจสอบว่า ID ของแคดดี้ที่ส่งเข้ามาอยู่ใน bookedCaddyIds หรือไม่
     throw new Error(`Some selected caddies are not available or do not exist/are not caddies: ${unavailableRequestedCaddyIds.join(', ')}`);
     // ถ้าไม่ว่างหรือไม่ใช่แคดดี้จริง ๆ ให้ error //throw คือการบอกโปรแกรมว่า "เจอปัญหาแล้ว หยุดทำงานตรงนี้
-    //ถ้าไม่มี throw ระบบจะ อัปเดตแคดดี้แม้จะมีบางคนไม่ว่าง → ทำให้ข้อมูลไม่ถูกต้อง
+    //ถ้าไม่มี throw ระบบจะ อัปเดตแคดดี้แม้จะมีบางคนไม่ว่าง  ทำให้ข้อมูลไม่ถูกต้อง
   }
 
   // เปลี่ยนสถานะของแคดดี้ที่จองแล้วให้เป็น "booked"
@@ -85,7 +88,7 @@ export const bookSlot = async (req, res) => {
     const bookedGolfBagIds = await reserveAssets("golfBag", golfBagQty, session);
     const bookedCaddyIds = await reserveCaddies(caddy, session); 
 
-    const booking = new Booking({
+    const booking = new Booking({ // สร้าง Booking ใหม่
       user: req.user._id, // โมเดล User โดยเก็บ _id ของผู้ใช้
       courseType,
       date,
@@ -94,7 +97,7 @@ export const bookSlot = async (req, res) => {
       groupName,
       caddy: bookedCaddyIds, 
       totalPrice,
-      isPaid: false,
+      isPaid: false, // ยังไม่ชำระเงิน
       golfCartQty,
       golfBagQty,
       bookedGolfCartIds: bookedGolfCartIds, 
@@ -796,6 +799,28 @@ export const getMyAssignedBookings = async (req, res) => {
         .populate('bookedGolfCartIds', 'name type status') // ดึงข้อมูลรถกอล์ฟที่จอง
         .populate('bookedGolfBagIds', 'name type status') // ดึงข้อมูลถุงกอล์ฟที่จอง
         .sort({ date: 1, timeSlot: 1 }); // เรียงตามวันที่และเวลา
+
+        res.status(200).json(bookings);
+
+    } catch (error) {
+        console.error("Error fetching caddy's assigned bookings:", error);
+        res.status(500).json({ error: error.message || "Failed to fetch assigned bookings." });
+    }
+};
+
+export const getMyAssignedBookings2 = async (req, res) => {
+    const caddyId = req.user._id;
+
+    try {
+        const bookings = await Booking.find({ 
+            caddy: caddyId,
+        })
+        .select('courseType date timeSlot groupName') // เลือกเฉพาะ field ที่ต้องการ
+        .sort({ date: 1, timeSlot: 1 }); // เรียงตามวันที่และเวลา
+
+        if (!bookings || bookings.length === 0) {
+            return res.status(404).json({ message: "No assigned bookings found." });
+        }
 
         res.status(200).json(bookings);
 
