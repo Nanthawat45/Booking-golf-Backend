@@ -20,7 +20,7 @@ export const generateToken = (userId, res) => { //=>{...} Arrow Function
 
 // 🔹 ลงทะเบียนผู้ใช้
 export const registerUser = async (req, res) => { // = async (req, res) => { คือ Asynchronous
-  const { name, email, password } = req.body;  // ดึงข้อมูลจาก req.body ซึ่งคือ JSON ที่ผู้ใช้กรอกมาจาก frontend
+  const { name, email, password, role } = req.body;  // ดึงข้อมูลจาก req.body ซึ่งคือ JSON ที่ผู้ใช้กรอกมาจาก frontend
   try {
       const userExists = await User.findOne({ email }); // ตรวจสอบว่ามีผู้ใช้ที่มีอีเมลนี้อยู่แล้วหรือไม่
   if (userExists) {
@@ -28,7 +28,7 @@ export const registerUser = async (req, res) => { // = async (req, res) => { ค
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);  // เข้ารหัสรหัสผ่านด้วย bcrypt //10 คือจำนวนรอบในการเข้ารหัส (salt rounds)
-  const user = await User.create({ name, email, password: hashedPassword, role: 'user' }); // สร้างผู้ใช้ใหม่ในฐานข้อมูล
+  const user = await User.create({ name, email, password: hashedPassword, role }); // สร้างผู้ใช้ใหม่ในฐานข้อมูล
 
   if (user) {  // ถ้าสร้างผู้ใช้สำเร็จ
     generateToken(user._id, res);  // สร้าง JWT และตั้งค่า cookie
