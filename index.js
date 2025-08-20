@@ -11,22 +11,30 @@ import { setupSwagger } from "./swagger.js";
 import cookieParser from "cookie-parser";
 
 
-dotenv.config();
+dotenv.config(); 
 const DB_URL = process.env.DB_URL;
 
 const app = express();
 try {
     mongoose.connect(DB_URL);
     console.log("Connect to Mongo DB Successfully");
-  } catch (error) {
-    console.log("DB Connection Failed");
-  }
-  
-app.use(express.json());
-app.use(cookieParser());
-app.use(cors({origin: process.env.FRONTEND_URL, credentials: true}));
+} catch (error) {
+    console.log("DB Connection Failed", error); 
+}
+ 
 
-app.use("/api/user", userRoutes);
+app.use(cors({
+    origin: process.env.FRONTEND_URL, // http://localhost:5173
+    credentials: true, 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+    allowedHeaders: ['Content-Type', 'Authorization'], 
+}));
+
+app.use(express.json()); 
+app.use(cookieParser()); 
+
+
+app.use("/api/user", userRoutes); 
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/caddy", caddyRoutes);
