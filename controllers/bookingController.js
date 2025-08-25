@@ -1,6 +1,7 @@
 import Booking from '../models/Booking.js';
 import Asset from '../models/Asset.js';
 import User from '../models/User.js';
+import Caddy from '../models/Caddy.js';
 import mongoose from 'mongoose';
 
 // --- ฟังก์ชันช่วยเหลือสำหรับจอง Asset ตามจำนวน (และส่งคืน ID) ---
@@ -39,16 +40,15 @@ const reserveCaddies = async (caddyIds, session) => {
   }
 
   // ค้นหาแคดดี้ที่ถูกเลือก และต้องมี role เป็น 'caddy' และ status เป็น 'available'
-  const availableCaddies = await User.find({ //find() ค้นหาค้นหนข้อมูล { }
-    _id: { $in: caddyIds }, // ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$ in ใช้เลือกข้อมูลที่ _id อยู่ใน array
-    role: 'caddy',
+  const availableCaddies = await Caddy.find({ //find() ค้นหาค้นหนข้อมูล { }
+    caddy_id: { $in: caddyIds }, // ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$ in ใช้เลือกข้อมูลที่ _id อยู่ใน array
     caddyStatus: 'available'
   }).session(session); // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction ที่เราต้องการควบคุม 
   // //หมายความว่า ถ้าธุรกรรมถูกยกเลิก (abortTransaction) ทุกคำสั่งที่ใช้ session นี้ก็จะถูกย้อนกลับด้วย 
 
   // ตรวจสอบว่าแคดดี้ที่เลือกมาทั้งหมดว่างจริงหรือไม่
   if (availableCaddies.length !== caddyIds.length) { //เช็คว่า จำนวนแคดดี้ที่เจอ (ที่ว่างและเป็นแคดดี้จริง ๆ) เท่ากับจำนวนที่ลูกค้าขอจองหรือไม่
-    const bookedCaddyIds = availableCaddies.map(caddy => caddy._id.toString()); //bookedCaddyIds คือการแปลง ID ของแคดดี้ที่ว่างให้เป็น string เพื่อเทียบกัน
+    const bookedCaddyIds = availableCaddies.map(caddy => caddy.caddy_id.toString()); //bookedCaddyIds คือการแปลง ID ของแคดดี้ที่ว่างให้เป็น string เพื่อเทียบกัน
     const unavailableRequestedCaddyIds = caddyIds.filter(id => !bookedCaddyIds.includes(id.toString())); //ดึง _id ของแคดดี้ที่ยังว่าง และแปลงเป็น string ทั้งหมด เพื่อเอาไปเทียบกับ caddyIds ที่ส่งเข้ามา ว่าคนไหน “ไม่ว่าง”
     // filter ใช้เพื่อกรองข้อมูลที่ไม่ตรงตามเงื่อนไขที่กำหนด // includes() ใช้เพื่อตรวจสอบว่า ID ของแคดดี้ที่ส่งเข้ามาอยู่ใน bookedCaddyIds หรือไม่
     throw new Error(`Some selected caddies are not available or do not exist/are not caddies: ${unavailableRequestedCaddyIds.join(', ')}`);
@@ -57,8 +57,8 @@ const reserveCaddies = async (caddyIds, session) => {
   }
 
   // เปลี่ยนสถานะของแคดดี้ที่จองแล้วให้เป็น "booked"
-  await User.updateMany( //updateMany() เป็นคำสั่งแก้ไขหลายอย่างพร้อมกัน
-    { _id: { $in: caddyIds } }, //ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$in ใช้เลือกข้อมูลที่ _id อยู่ใน array
+  await Caddy.updateMany( //updateMany() เป็นคำสั่งแก้ไขหลายอย่างพร้อมกัน
+    { caddy_id: { $in: caddyIds } }, //ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$in ใช้เลือกข้อมูลที่ _id อยู่ใน array
     { $set: { caddyStatus: "booked" } }, //เปลี่ยนสถานะ caddyStatus เป็น "booked"
     { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
   );
@@ -394,81 +394,6 @@ export const endRound = async (req, res) => {
         session.endSession();
         console.log("--- End of endRound Debug ---");
     }
-};
-
-// --- ✅ ฟังก์ชันใหม่: แคดดี้ "ยกเลิกงานก่อนเริ่ม" (Cancel Before Start) ---
-export const cancelBeforeStart = async (req, res) => {
-  const { bookingId } = req.params;
-  const caddyId = req.user._id;
-
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
-  try {
-    const booking = await Booking.findById(bookingId).session(session);
-
-    if (!booking) {
-      return res.status(404).json({ message: "Booking not found." });
-    }
-
-    // ตรวจสอบว่าแคดดี้ที่ล็อกอินอยู่ถูกมอบหมายให้กับการจองนี้หรือไม่
-    if (!booking.caddy.map(id => id.toString()).includes(caddyId.toString())) {
-        return res.status(403).json({ message: "You are not assigned to this booking." });
-    }
-
-    // ตรวจสอบสถานะปัจจุบันของแคดดี้ (ต้องเป็น 'booked' เท่านั้น)
-    const currentCaddy = await User.findById(caddyId).session(session);
-    if (!currentCaddy || currentCaddy.caddyStatus !== 'booked') {
-      throw new Error("Caddy is not in 'booked' status. Cannot cancel before start.");
-    }
-
-    // 1. เปลี่ยนสถานะ Golf Carts จาก 'booked' เป็น 'available'
-    if (booking.bookedGolfCartIds && booking.bookedGolfCartIds.length > 0) {
-      const result = await Asset.updateMany(
-        { _id: { $in: booking.bookedGolfCartIds }, status: 'booked' },
-        { $set: { status: 'available' } },
-        { session: session }
-      );
-      if (result.modifiedCount !== booking.bookedGolfCartIds.length) {
-          console.warn("Not all golf carts were in 'booked' status for cancellation.");
-      }
-    }
-
-    // 2. เปลี่ยนสถานะ Golf Bags จาก 'booked' เป็น 'available'
-    if (booking.bookedGolfBagIds && booking.bookedGolfBagIds.length > 0) {
-      const result = await Asset.updateMany(
-        { _id: { $in: booking.bookedGolfBagIds }, status: 'booked' },
-        { $set: { status: 'available' } },
-        { session: session }
-      );
-      if (result.modifiedCount !== booking.bookedGolfBagIds.length) {
-          console.warn("Not all golf bags were in 'booked' status for cancellation.");
-      }
-    }
-
-    // 3. เปลี่ยนสถานะแคดดี้จาก 'booked' เป็น 'available'
-    await User.updateOne(
-      { _id: caddyId, caddyStatus: 'booked' },
-      { $set: { caddyStatus: 'available' } },
-      { session: session }
-    );
-
-    // 4. "ปลด" แคดดี้และ Asset ออกจาก Booking นั้น
-    booking.caddy = []; 
-    booking.bookedGolfCartIds = [];
-    booking.bookedGolfBagIds = [];
-    await booking.save({ session });
-
-    await session.commitTransaction();
-    res.status(200).json({ message: "Booking cancelled before start. Assets and caddy are now available.", booking });
-
-  } catch (error) {
-    await session.abortTransaction();
-    console.error("Failed to cancel booking before start:", error);
-    res.status(400).json({ error: error.message || "Failed to cancel booking before start." });
-  } finally {
-    session.endSession();
-  }
 };
 
 // --- ✅ ฟังก์ชันใหม่: แคดดี้ "ยกเลิกงานระหว่างทำ" (Cancel During Round) ---
@@ -817,16 +742,17 @@ export const getMyAssignedBookings2 = async (req, res) => {
             caddy: caddyId,
         })
         .select('courseType date timeSlot groupName') // เลือกเฉพาะ field ที่ต้องการ
-        .sort({ date: 1, timeSlot: 1 }); // เรียงตามวันที่และเวลา
+        .sort({ date: 1, timeSlot: 1 }); // เรียงตามวันที่และเวลา //.sort การเรียงลำดับ
 
         if (!bookings || bookings.length === 0) {
-            return res.status(404).json({ message: "No assigned bookings found." });
+            return res.status(404).json({ message: "No assigned bookings found." }); 
+            // ถ้าไม่พบการจองที่แคดดี้ถูกมอบหมาย ให้ส่งข้อความว่าไม่พบการจอง
         }
 
         res.status(200).json(bookings);
 
     } catch (error) {
-        console.error("Error fetching caddy's assigned bookings:", error);
-        res.status(500).json({ error: error.message || "Failed to fetch assigned bookings." });
+        console.error("Error fetching caddy's assigned bookings:", error);// แสดงข้อผิดพลาดใน console
+        res.status(500).json({ error: error.message || "Failed to fetch assigned bookings." });// ส่งข้อความแสดงข้อผิดพลาดกลับไปยังผู้ใช้
     }
 };

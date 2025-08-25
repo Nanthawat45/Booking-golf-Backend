@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs"; // ใช้ bcryptjs สำหรับการเข้ารหัสรหัสผ่าน
+import Caddy from "../models/Caddy.js";
 import Booking from "../models/Booking.js";
 import mongoose from "mongoose";
 import Asset from "../models/Asset.js";
@@ -103,6 +104,13 @@ export const registerByAdmin = async (req, res) => {
   const newUser = await User.create({ name, email, password: hashedPassword, role });
 
   if (newUser) {
+    if (role === 'caddy') {
+            await Caddy.create({
+                caddy_id: newUser._id, // ใช้ _id ของผู้ใช้ใหม่ที่เพิ่งสร้าง
+                name: newUser.name,
+                caddyStatus: 'available' // กำหนดสถานะเริ่มต้น
+            });
+        }
     res.status(201).json({
       _id: newUser.id,
       name: newUser.name,
@@ -257,7 +265,7 @@ export const logoutUser = (req, res) => {
 
 export const getAvailableCaddies = async (req, res) => {
   try {
-    const caddies = await User.find({ role: 'caddy', caddyStatus: 'available' });
+    const caddies = await Caddy.find({ caddyStatus: 'available' });
     res.status(200).json(caddies);
   } catch (error) {
     console.error("Error in getAvailableCaddies:", error);

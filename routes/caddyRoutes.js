@@ -7,7 +7,7 @@ import {
     markCaddyAsAvailable,
     getMyAssignedBookings,
     getMyAssignedBookings2
-} from '../controllers/bookingController.js';
+} from '../controllers/caddyController.js';
 
 import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 
