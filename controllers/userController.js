@@ -84,7 +84,7 @@ export const getUserProfile = async (req, res) => { //Asynchronous
 // 🔹 แอดมินสร้างรหัส caddy starter
 export const registerByAdmin = async (req, res) => {
   const { name, email, password, role } = req.body;
-
+ 
   const allowedRoles = ['admin', 'caddy', 'starter'];
   if (!allowedRoles.includes(role)) {
     return res.status(400).json({ message: "Invalid role specified" });

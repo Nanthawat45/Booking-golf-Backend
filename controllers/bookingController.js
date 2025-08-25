@@ -61,7 +61,7 @@ const reserveCaddies = async (caddyIds, session) => {
     { caddy_id: { $in: caddyIds } }, //ค้นหาแคดดี้ที่มี ID อยู่ใน caddyIds //$in ใช้เลือกข้อมูลที่ _id อยู่ใน array
     { $set: { caddyStatus: "booked" } }, //เปลี่ยนสถานะ caddyStatus เป็น "booked"
     { session: session } // ใช้ session เพื่อให้คำสั่งนี้เป็นส่วนหนึ่งของ transaction
-  );
+  ); 
 
   return caddyIds; // ส่งคืน ID ของแคดดี้ที่ถูกจองไปแล้ว
 };
